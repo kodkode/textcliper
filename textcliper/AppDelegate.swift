@@ -99,6 +99,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         captureItem.target = self
         menu?.addItem(captureItem)
 
+        let barcodeItem = NSMenuItem(
+            title: "Scan QR/Barcode",
+            action: #selector(scanBarcode),
+            keyEquivalent: ""
+        )
+        barcodeItem.target = self
+        menu?.addItem(barcodeItem)
+
         let editItem = NSMenuItem(
             title: "Edit Captured Text",
             action: #selector(toggleAuto),
@@ -161,6 +169,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func captureScreenshot() {
         triggerCaptureAndCopy()
+    }
+
+    @objc private func scanBarcode() {
+        print("📱 Triggering QR/Barcode scan...")
+
+        OCRService.shared.captureAndScanBarcode { [weak self] result in
+            switch result {
+            case .success(let barcodeData):
+                self?.handleScannedBarcode(barcodeData)
+            case .failure(let error):
+                self?.handleBarcodeError(error)
+            }
+        }
     }
 
     @objc private func editText() {
@@ -274,6 +295,54 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             showAlert(
                 title: "Copy Failed",
                 message: "Failed to copy text to clipboard: \(error.localizedDescription)"
+            )
+        }
+    }
+
+    private func handleScannedBarcode(_ barcodeData: String) {
+        // Copy to clipboard
+        let copyResult = ClipboardManager.shared.copyToClipboard(barcodeData)
+
+        switch copyResult {
+        case .success:
+            let preview = String(barcodeData.prefix(50))
+            let ellipsis = barcodeData.count > 50 ? "..." : ""
+            showNotification(
+                title: "QR/Barcode Scanned",
+                message: "\(preview)\(ellipsis)"
+            )
+        case .failure(let error):
+            showAlert(
+                title: "Copy Failed",
+                message: "Failed to copy barcode data to clipboard: \(error.localizedDescription)"
+            )
+        }
+    }
+
+    private func handleBarcodeError(_ error: OCRError) {
+        switch error {
+        case .screenshotFailed:
+            // User likely cancelled - no alert needed
+            break
+        case .imageLoadFailed:
+            showAlert(
+                title: "Screenshot Error",
+                message: "Failed to load the captured screenshot."
+            )
+        case .ocrFailed:
+            showAlert(
+                title: "Scan Error",
+                message: "Failed to scan for QR/Barcode."
+            )
+        case .noTextDetected:
+            showAlert(
+                title: "No Code Found",
+                message: "No QR code or barcode was detected in the captured screenshot."
+            )
+        case .permissionDenied:
+            showAlert(
+                title: "Permission Required",
+                message: "Please grant Screen Recording permission in System Settings > Privacy & Security."
             )
         }
     }

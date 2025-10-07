@@ -144,6 +144,86 @@ class OCRService {
         }
     }
 
+    /// Captures a screenshot and scans for QR codes and barcodes
+    /// - Parameter completion: Called with the detected barcode data or error
+    func captureAndScanBarcode(completion: @escaping (Result<String, OCRError>) -> Void) {
+        captureScreenshot { result in
+            switch result {
+            case .success(let imageURL):
+                self.performBarcodeDetection(on: imageURL, completion: completion)
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+
+    /// Performs barcode detection on an image file
+    /// - Parameters:
+    ///   - imageURL: URL to the image file
+    ///   - completion: Called with detected barcode data or error
+    func performBarcodeDetection(on imageURL: URL, completion: @escaping (Result<String, OCRError>) -> Void) {
+        guard let image = NSImage(contentsOf: imageURL),
+              let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            DispatchQueue.main.async {
+                completion(.failure(.imageLoadFailed))
+            }
+            return
+        }
+
+        // Perform barcode detection on background thread
+        DispatchQueue.global(qos: .userInitiated).async {
+            let request = VNDetectBarcodesRequest { request, error in
+                if let error = error {
+                    print("Barcode detection error: \(error.localizedDescription)")
+                    DispatchQueue.main.async {
+                        completion(.failure(.ocrFailed))
+                    }
+                    return
+                }
+
+                guard let observations = request.results as? [VNBarcodeObservation],
+                      !observations.isEmpty else {
+                    DispatchQueue.main.async {
+                        completion(.failure(.noTextDetected))
+                    }
+                    return
+                }
+
+                // Collect all barcode payloads
+                var results: [String] = []
+                for observation in observations {
+                    if let payload = observation.payloadStringValue {
+                        results.append(payload)
+                    }
+                }
+
+                // Clean up temp file
+                try? FileManager.default.removeItem(at: imageURL)
+
+                if results.isEmpty {
+                    DispatchQueue.main.async {
+                        completion(.failure(.noTextDetected))
+                    }
+                } else {
+                    let finalResult = results.joined(separator: "\n")
+                    DispatchQueue.main.async {
+                        completion(.success(finalResult))
+                    }
+                }
+            }
+
+            let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+            do {
+                try handler.perform([request])
+            } catch {
+                print("Vision barcode request error: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    completion(.failure(.ocrFailed))
+                }
+            }
+        }
+    }
+
     /// Cleans OCR text by removing artifact lines
     /// - Parameter text: Raw OCR text
     /// - Returns: Cleaned text
