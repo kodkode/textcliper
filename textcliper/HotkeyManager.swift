@@ -18,11 +18,19 @@ class HotkeyManager {
 
     private init() {}
 
-    /// Registers a global hotkey (⌘⇧8)
-    /// - Parameter callback: The action to perform when hotkey is pressed
+    /// Registers a global hotkey with custom key and modifiers
+    /// - Parameters:
+    ///   - keyCode: The key code to register
+    ///   - modifiers: The modifier keys (cmdKey, shiftKey, etc.)
+    ///   - callback: The action to perform when hotkey is pressed
     /// - Returns: True if registration succeeded
     @discardableResult
-    func registerHotkey(callback: @escaping () -> Void) -> Bool {
+    func registerHotkey(keyCode: UInt32 = UInt32(kVK_ANSI_8),
+                       modifiers: UInt32 = UInt32(cmdKey | shiftKey),
+                       callback: @escaping () -> Void) -> Bool {
+        // Unregister existing hotkey first
+        unregisterHotkey()
+
         self.callback = callback
 
         // Note: We skip the permission check here because AXIsProcessTrustedWithOptions
@@ -63,10 +71,10 @@ class HotkeyManager {
             return false
         }
 
-        // Register hotkey: ⌘⇧8
+        // Register hotkey with custom key and modifiers
         let registerStatus = RegisterEventHotKey(
-            UInt32(kVK_ANSI_8),                    // Key code for 8
-            UInt32(cmdKey | shiftKey),             // Modifiers: Command + Shift
+            keyCode,
+            modifiers,
             hotKeyID,
             GetApplicationEventTarget(),
             0,
@@ -74,7 +82,7 @@ class HotkeyManager {
         )
 
         if registerStatus == noErr {
-            print("Global hotkey registered: ⌘⇧8")
+            print("Global hotkey registered: keyCode=\(keyCode), modifiers=\(modifiers)")
             return true
         } else {
             print("Failed to register hotkey: \(registerStatus)")

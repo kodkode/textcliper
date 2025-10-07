@@ -9,16 +9,23 @@ import AppKit
 import SwiftUI
 import UserNotifications
 import Combine
+import Carbon
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var menu: NSMenu?
     private weak var editWindow: NSWindow?
+    private weak var hotkeyWindow: NSWindow?
     private var capturedText: String = ""
     private var hotkeyRegistered = false
     private var autoEditEnabled = false
+    private var currentKeyCode: UInt32 = UInt32(kVK_ANSI_8)
+    private var currentModifiers: UInt32 = UInt32(cmdKey | shiftKey)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Load saved hotkey preferences
+        loadHotkeyPreferences()
+
         // Request notification permissions
         requestNotificationPermissions()
 
@@ -33,7 +40,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Create menu
         setupMenu()
 
-        // Register global hotkey (⌘⇧8)
+        // Register global hotkey
         attemptHotkeyRegistration()
 
         // Listen for app becoming active to retry hotkey registration
@@ -58,7 +65,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Try to register regardless of check result
         // The check sometimes returns false even when permission is granted (Xcode bug)
-        let success = HotkeyManager.shared.registerHotkey { [weak self] in
+        let success = HotkeyManager.shared.registerHotkey(
+            keyCode: currentKeyCode,
+            modifiers: currentModifiers
+        ) { [weak self] in
             print("🔥 Hotkey triggered!")
             self?.triggerCaptureAndCopy()
         }
@@ -97,6 +107,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         editItem.target = self
         editItem.state = autoEditEnabled ? .on : .off
         menu?.addItem(editItem)
+
+        menu?.addItem(NSMenuItem.separator())
+
+        let configureHotkeyItem = NSMenuItem(
+            title: "Configure Hotkey...",
+            action: #selector(configureHotkey),
+            keyEquivalent: ""
+        )
+        configureHotkeyItem.target = self
+        menu?.addItem(configureHotkeyItem)
 
         menu?.addItem(NSMenuItem.separator())
 
@@ -158,6 +178,59 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func toggleAuto(_ sender: NSMenuItem) {
         autoEditEnabled.toggle()
         sender.state = autoEditEnabled ? .on : .off
+    }
+
+    @objc private func configureHotkey() {
+        // Close existing window if open
+        hotkeyWindow?.close()
+
+        // Create binding holders
+        let keyCodeHolder = KeyCodeHolder(keyCode: currentKeyCode)
+        let modifiersHolder: ModifiersHolder = ModifiersHolder(modifiers: currentModifiers)
+
+        let contentView = HotkeyRecorderWindow(
+            keyCode: keyCodeHolder.binding,
+            modifiers: modifiersHolder.binding
+        ) { [weak self] newKeyCode, newModifiers in
+            self?.updateHotkey(keyCode: newKeyCode, modifiers: newModifiers)
+        }
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 450, height: 250),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentView = NSHostingView(rootView: contentView)
+        window.title = "Configure Hotkey"
+        window.center()
+        window.level = .floating
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        window.isReleasedWhenClosed = false
+
+        hotkeyWindow = window
+    }
+
+    private func updateHotkey(keyCode: UInt32, modifiers: UInt32) {
+        currentKeyCode = keyCode
+        currentModifiers = modifiers
+        saveHotkeyPreferences()
+        attemptHotkeyRegistration()
+    }
+
+    private func saveHotkeyPreferences() {
+        UserDefaults.standard.set(currentKeyCode, forKey: "hotkeyKeyCode")
+        UserDefaults.standard.set(currentModifiers, forKey: "hotkeyModifiers")
+    }
+
+    private func loadHotkeyPreferences() {
+        if let savedKeyCode = UserDefaults.standard.object(forKey: "hotkeyKeyCode") as? UInt32 {
+            currentKeyCode = savedKeyCode
+        }
+        if let savedModifiers = UserDefaults.standard.object(forKey: "hotkeyModifiers") as? UInt32 {
+            currentModifiers = savedModifiers
+        }
     }
 
     @objc private func quit() {
@@ -359,6 +432,38 @@ private class TextHolder: ObservableObject {
         Binding(
             get: { self.text },
             set: { self.text = $0 }
+        )
+    }
+}
+
+/// Helper class to create a binding for keyCode
+private class KeyCodeHolder: ObservableObject {
+    @Published var keyCode: UInt32
+
+    init(keyCode: UInt32) {
+        self.keyCode = keyCode
+    }
+
+    var binding: Binding<UInt32> {
+        Binding(
+            get: { self.keyCode },
+            set: { self.keyCode = $0 }
+        )
+    }
+}
+
+/// Helper class to create a binding for modifiers
+private class ModifiersHolder: ObservableObject {
+    @Published var modifiers: UInt32
+
+    init(modifiers: UInt32) {
+        self.modifiers = modifiers
+    }
+
+    var binding: Binding<UInt32> {
+        Binding(
+            get: { self.modifiers },
+            set: { self.modifiers = $0 }
         )
     }
 }
