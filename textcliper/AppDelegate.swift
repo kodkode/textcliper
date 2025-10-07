@@ -16,6 +16,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private weak var editWindow: NSWindow?
     private var capturedText: String = ""
     private var hotkeyRegistered = false
+    private var autoEditEnabled = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Request notification permissions
@@ -90,22 +91,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let editItem = NSMenuItem(
             title: "Edit Captured Text",
-            action: #selector(editText),
+            action: #selector(toggleAuto),
             keyEquivalent: ""
         )
         editItem.target = self
+        editItem.state = autoEditEnabled ? .on : .off
         menu?.addItem(editItem)
-
-        menu?.addItem(NSMenuItem.separator())
-
-        // Debug menu item
-        let debugItem = NSMenuItem(
-            title: "Check Permissions",
-            action: #selector(checkPermissions),
-            keyEquivalent: ""
-        )
-        debugItem.target = self
-        menu?.addItem(debugItem)
 
         menu?.addItem(NSMenuItem.separator())
 
@@ -164,6 +155,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         openEditWindow()
     }
 
+    @objc private func toggleAuto(_ sender: NSMenuItem) {
+        autoEditEnabled.toggle()
+        sender.state = autoEditEnabled ? .on : .off
+    }
+
     @objc private func quit() {
         NSApplication.shared.terminate(nil)
     }
@@ -200,6 +196,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 title: "Text Copied",
                 message: "\(preview)\(ellipsis)"
             )
+            if autoEditEnabled { openEditWindow() }
         case .failure(let error):
             showAlert(
                 title: "Copy Failed",
@@ -266,7 +263,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.contentView = NSHostingView(rootView: contentView)
         window.title = "Edit Captured Text"
         window.center()
+        window.level = .floating
         window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
         window.isReleasedWhenClosed = false
 
         editWindow = window
