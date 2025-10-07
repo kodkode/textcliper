@@ -361,12 +361,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         switch copyResult {
         case .success:
-            let preview = String(text.prefix(50))
-            let ellipsis = text.count > 50 ? "..." : ""
-            showNotification(
-                title: "Text Copied",
-                message: "\(preview)\(ellipsis)"
+            let preview = String(text.prefix(100))
+            let ellipsis = text.count > 100 ? "..." : ""
+            let characterCount = text.count
+            let wordCount = text.split(separator: " ").count
+
+            // Show custom HUD instead of system notification
+            HUDManager.shared.showHUD(
+                message: "\(preview)\(ellipsis)",
+                characterCount: characterCount,
+                wordCount: wordCount
             )
+
             if autoEditEnabled { openEditWindow() }
         case .failure(let error):
             showAlert(
