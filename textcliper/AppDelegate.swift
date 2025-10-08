@@ -16,9 +16,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var menu: NSMenu?
     private weak var editWindow: NSWindow?
     private weak var hotkeyWindow: NSWindow?
+    private weak var historyWindow: NSWindow?
     private var capturedText: String = ""
     private var hotkeyRegistered = false
     private var autoEditEnabled = false
+    private var shareActionsEnabled = true // Enable share actions by default
     private var currentKeyCode: UInt32 = UInt32(kVK_ANSI_8)
     private var currentModifiers: UInt32 = UInt32(cmdKey | shiftKey)
     private var captureMenuItem: NSMenuItem?
@@ -111,13 +113,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu?.addItem(barcodeItem)
 
         let editItem = NSMenuItem(
-            title: "Edit Captured Text",
+            title: "Auto-Open Editor",
             action: #selector(toggleAuto),
             keyEquivalent: ""
         )
         editItem.target = self
         editItem.state = autoEditEnabled ? .on : .off
         menu?.addItem(editItem)
+
+        let shareActionsItem = NSMenuItem(
+            title: "Show Share Actions",
+            action: #selector(toggleShareActions),
+            keyEquivalent: ""
+        )
+        shareActionsItem.target = self
+        shareActionsItem.state = shareActionsEnabled ? .on : .off
+        menu?.addItem(shareActionsItem)
+
+        menu?.addItem(NSMenuItem.separator())
+
+        let historyItem = NSMenuItem(
+            title: "History...",
+            action: #selector(openHistory),
+            keyEquivalent: "h"
+        )
+        historyItem.target = self
+        menu?.addItem(historyItem)
 
         menu?.addItem(NSMenuItem.separator())
 
@@ -202,6 +223,34 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func toggleAuto(_ sender: NSMenuItem) {
         autoEditEnabled.toggle()
         sender.state = autoEditEnabled ? .on : .off
+    }
+
+    @objc private func toggleShareActions(_ sender: NSMenuItem) {
+        shareActionsEnabled.toggle()
+        sender.state = shareActionsEnabled ? .on : .off
+    }
+
+    @objc private func openHistory() {
+        // Close existing window if open
+        historyWindow?.close()
+
+        let contentView = HistoryView()
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 600, height: 500),
+            styleMask: [.titled, .closable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentView = NSHostingView(rootView: contentView)
+        window.title = "Capture History"
+        window.center()
+        window.level = .floating
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        window.isReleasedWhenClosed = false
+
+        historyWindow = window
     }
 
     @objc private func configureHotkey() {
@@ -366,14 +415,31 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let characterCount = text.count
             let wordCount = text.split(separator: " ").count
 
-            // Show custom HUD instead of system notification
-            HUDManager.shared.showHUD(
-                message: "\(preview)\(ellipsis)",
-                characterCount: characterCount,
-                wordCount: wordCount
-            )
+            // Add to history
+            let historyItem = HistoryItem(text: text)
+            HistoryService.shared.addItem(historyItem)
 
-            if autoEditEnabled { openEditWindow() }
+            // Sync to iCloud if enabled
+            if CloudSyncService.shared.iCloudSyncEnabled {
+                Task {
+                    try? await CloudSyncService.shared.uploadItem(historyItem)
+                }
+            }
+
+            // If auto-edit is enabled, open editor directly (skip HUD)
+            if autoEditEnabled {
+                openEditWindow()
+            } else {
+                // Show custom HUD with share actions
+                HUDManager.shared.showHUD(
+                    message: "\(preview)\(ellipsis)",
+                    characterCount: characterCount,
+                    wordCount: wordCount,
+                    fullText: text,
+                    showActions: shareActionsEnabled,
+                    duration: 2.5
+                )
+            }
         case .failure(let error):
             showAlert(
                 title: "Copy Failed",
@@ -467,17 +533,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Create text binding using a class to hold the state
         let textHolder = TextHolder(text: capturedText)
 
-        let contentView = TextEditorWindow(text: textHolder.binding) { [weak self] editedText in
-            self?.capturedText = editedText
-            let result = ClipboardManager.shared.copyToClipboard(editedText)
+        let contentView = TextEditorWindow(
+            text: textHolder.binding,
+            onCopy: { [weak self] editedText in
+                self?.capturedText = editedText
+                let result = ClipboardManager.shared.copyToClipboard(editedText)
 
-            if case .success = result {
-                self?.showNotification(
-                    title: "Text Copied",
-                    message: "Edited text copied to clipboard."
-                )
-            }
-        }
+                if case .success = result {
+                    self?.showNotification(
+                        title: "Text Copied",
+                        message: "Edited text copied to clipboard."
+                    )
+                }
+            },
+            showShareActions: shareActionsEnabled
+        )
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 600, height: 400),

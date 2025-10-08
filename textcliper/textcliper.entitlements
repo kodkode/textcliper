@@ -4,5 +4,19 @@
 <dict>
 	<!-- No sandbox-specific entitlements needed -->
 	<!-- App now runs unsandboxed with full system access -->
+
+	<!-- iCloud capability for history sync -->
+	<key>com.apple.developer.icloud-container-identifiers</key>
+	<array>
+		<string>iCloud.$(CFBundleIdentifier)</string>
+	</array>
+	<key>com.apple.developer.icloud-services</key>
+	<array>
+		<string>CloudKit</string>
+	</array>
+	<key>com.apple.developer.ubiquity-container-identifiers</key>
+	<array>
+		<string>iCloud.$(CFBundleIdentifier)</string>
+	</array>
 </dict>
 </plist>

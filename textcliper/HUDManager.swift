@@ -11,17 +11,26 @@ import SwiftUI
 class HUDManager {
     static let shared = HUDManager()
     private var currentWindow: NSWindow?
+    private var hideTimer: DispatchWorkItem?
 
     private init() {}
 
-    func showHUD(message: String, characterCount: Int, wordCount: Int, duration: TimeInterval = 2.5) {
+    func showHUD(message: String, characterCount: Int, wordCount: Int, fullText: String = "", showActions: Bool = false, duration: TimeInterval = 2.5) {
         DispatchQueue.main.async { [weak self] in
-            self?.showHUDOnMain(message: message, characterCount: characterCount, wordCount: wordCount, duration: duration)
+            self?.showHUDOnMain(message: message, characterCount: characterCount, wordCount: wordCount, fullText: fullText, showActions: showActions, duration: duration)
         }
     }
 
-    private func showHUDOnMain(message: String, characterCount: Int, wordCount: Int, duration: TimeInterval) {
+    func dismissHUD() {
+        DispatchQueue.main.async { [weak self] in
+            self?.hideTimer?.cancel()
+            self?.hideHUDAnimated()
+        }
+    }
+
+    private func showHUDOnMain(message: String, characterCount: Int, wordCount: Int, fullText: String, showActions: Bool, duration: TimeInterval) {
         // Close existing HUD if present
+        hideTimer?.cancel()
         if let existing = currentWindow {
             existing.close()
             currentWindow = nil
@@ -31,7 +40,12 @@ class HUDManager {
         let hudView = HUDView(
             message: message,
             characterCount: characterCount,
-            wordCount: wordCount
+            wordCount: wordCount,
+            fullText: fullText,
+            showActions: showActions,
+            onShare: { [weak self] destination in
+                self?.handleShare(text: fullText, destination: destination)
+            }
         )
 
         // Create window
@@ -47,7 +61,7 @@ class HUDManager {
         window.isOpaque = false
         window.level = .floating
         window.hasShadow = false
-        window.ignoresMouseEvents = true
+        window.ignoresMouseEvents = !showActions // Allow interaction if showing actions
         window.collectionBehavior = [.canJoinAllSpaces, .stationary]
         window.isReleasedWhenClosed = false // Keep window alive
 
@@ -72,18 +86,41 @@ class HUDManager {
             window.animator().alphaValue = 1.0
         })
 
-        // Auto-hide after duration
-        DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
-            guard let self = self, let window = self.currentWindow else { return }
+        // Auto-hide after duration (if not showing actions, or with longer duration if showing actions)
+        let actualDuration = showActions ? duration * 2 : duration
+        let timer = DispatchWorkItem { [weak self] in
+            self?.hideHUDAnimated()
+        }
+        hideTimer = timer
+        DispatchQueue.main.asyncAfter(deadline: .now() + actualDuration, execute: timer)
+    }
 
-            NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.3
-                window.animator().alphaValue = 0
-            }, completionHandler: { [weak self] in
-                window.orderOut(nil)
-                window.close()
-                self?.currentWindow = nil
-            })
+    private func hideHUDAnimated() {
+        guard let window = currentWindow else { return }
+
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 0.3
+            window.animator().alphaValue = 0
+        }, completionHandler: { [weak self] in
+            window.orderOut(nil)
+            window.close()
+            self?.currentWindow = nil
+        })
+    }
+
+    private func handleShare(text: String, destination: ShareDestination) {
+        // Dismiss HUD immediately when user clicks share button
+        dismissHUD()
+
+        // Perform share action
+        ShareService.shared.share(text: text, to: destination) { result in
+            switch result {
+            case .success:
+                print("✅ Successfully shared to \(destination)")
+            case .failure(let error):
+                print("❌ Failed to share: \(error)")
+                // Could show an error HUD here if needed
+            }
         }
     }
 }
