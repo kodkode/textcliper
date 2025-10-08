@@ -17,6 +17,11 @@ struct HistoryItem: Identifiable, Codable {
     let deviceName: String
     var isSynced: Bool
     var cloudRecordID: String?
+    var isEncrypted: Bool = false // Track if text is stored encrypted
+
+    enum CodingKeys: String, CodingKey {
+        case id, text, timestamp, characterCount, wordCount, deviceName, isSynced, cloudRecordID, isEncrypted
+    }
 
     init(text: String, timestamp: Date = Date(), deviceName: String = Host.current().localizedName ?? "Unknown") {
         self.id = UUID()
