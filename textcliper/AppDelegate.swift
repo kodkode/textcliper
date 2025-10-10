@@ -142,6 +142,84 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu?.addItem(NSMenuItem.separator())
 
+        let aiEnhancedItem = NSMenuItem(
+            title: "AI-Enhanced OCR",
+            action: #selector(toggleAIEnhanced),
+            keyEquivalent: ""
+        )
+        aiEnhancedItem.target = self
+        aiEnhancedItem.state = UserDefaults.standard.bool(forKey: "aiEnhancedOCREnabled") ? .on : .off
+        menu?.addItem(aiEnhancedItem)
+
+        // AI Provider submenu
+        let aiProviderItem = NSMenuItem(
+            title: "AI Provider",
+            action: nil,
+            keyEquivalent: ""
+        )
+        let aiProviderMenu = NSMenu()
+
+        let useOpenAIItem = NSMenuItem(
+            title: "OpenAI (GPT-5)",
+            action: #selector(selectOpenAI),
+            keyEquivalent: ""
+        )
+        useOpenAIItem.target = self
+        let currentProvider = UserDefaults.standard.string(forKey: "aiProvider") ?? "openai"
+        useOpenAIItem.state = (currentProvider == "openai") ? .on : .off
+        aiProviderMenu.addItem(useOpenAIItem)
+
+        let useGeminiItem = NSMenuItem(
+            title: "Google Gemini",
+            action: #selector(selectGemini),
+            keyEquivalent: ""
+        )
+        useGeminiItem.target = self
+        useGeminiItem.state = (currentProvider == "gemini") ? .on : .off
+        aiProviderMenu.addItem(useGeminiItem)
+
+        // Gemini model submenu
+        if currentProvider == "gemini" {
+            aiProviderMenu.addItem(NSMenuItem.separator())
+
+            let geminiModelItem = NSMenuItem(title: "Gemini Model", action: nil, keyEquivalent: "")
+            let geminiModelMenu = NSMenu()
+
+            let currentGeminiModel = UserDefaults.standard.string(forKey: "geminiModel") ?? "gemini-1.5-pro"
+
+            let models = [
+                ("gemini-1.5-pro", "Gemini 1.5 Pro (Best for handwriting)"),
+                ("gemini-2.5-pro", "Gemini 2.5 Pro (Most accurate)"),
+                ("gemini-2.5-flash", "Gemini 2.5 Flash (Fast + thinking)"),
+                ("gemini-2.0-flash-thinking-exp", "Gemini 2.0 Flash Thinking"),
+                ("gemini-2.0-flash-exp", "Gemini 2.0 Flash (Fastest)")
+            ]
+
+            for (modelId, modelName) in models {
+                let modelItem = NSMenuItem(title: modelName, action: #selector(selectGeminiModel(_:)), keyEquivalent: "")
+                modelItem.target = self
+                modelItem.representedObject = modelId
+                modelItem.state = (currentGeminiModel == modelId) ? .on : .off
+                geminiModelMenu.addItem(modelItem)
+            }
+
+            geminiModelItem.submenu = geminiModelMenu
+            aiProviderMenu.addItem(geminiModelItem)
+        }
+
+        aiProviderItem.submenu = aiProviderMenu
+        menu?.addItem(aiProviderItem)
+
+        let configureAPIItem = NSMenuItem(
+            title: "Configure API Keys...",
+            action: #selector(configureAPIKey),
+            keyEquivalent: ""
+        )
+        configureAPIItem.target = self
+        menu?.addItem(configureAPIItem)
+
+        menu?.addItem(NSMenuItem.separator())
+
         let configureHotkeyItem = NSMenuItem(
             title: "Configure Hotkey...",
             action: #selector(configureHotkey),
@@ -228,6 +306,115 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func toggleShareActions(_ sender: NSMenuItem) {
         shareActionsEnabled.toggle()
         sender.state = shareActionsEnabled ? .on : .off
+    }
+
+    @objc private func toggleAIEnhanced(_ sender: NSMenuItem) {
+        let currentValue = UserDefaults.standard.bool(forKey: "aiEnhancedOCREnabled")
+        let newValue = !currentValue
+
+        // Check if API key is configured when enabling
+        if newValue {
+            let provider = UserDefaults.standard.string(forKey: "aiProvider") ?? "openai"
+            let hasKey = (provider == "openai")
+                ? KeychainService.shared.getOpenAIKey() != nil
+                : KeychainService.shared.getGeminiKey() != nil
+
+            if !hasKey {
+                showAlert(
+                    title: "API Key Required",
+                    message: "Please configure your \(provider == "openai" ? "OpenAI" : "Gemini") API key first using 'Configure API Keys...' menu option."
+                )
+                return
+            }
+        }
+
+        UserDefaults.standard.set(newValue, forKey: "aiEnhancedOCREnabled")
+        sender.state = newValue ? .on : .off
+
+        let status = newValue ? "enabled" : "disabled"
+        print("🤖 AI-Enhanced OCR \(status)")
+    }
+
+    @objc private func selectOpenAI() {
+        UserDefaults.standard.set("openai", forKey: "aiProvider")
+        setupMenu() // Refresh menu to update checkmarks
+        print("🔄 Switched to OpenAI (GPT-5)")
+    }
+
+    @objc private func selectGemini() {
+        UserDefaults.standard.set("gemini", forKey: "aiProvider")
+        setupMenu() // Refresh menu to update checkmarks
+        let model = UserDefaults.standard.string(forKey: "geminiModel") ?? "gemini-1.5-pro"
+        print("🔄 Switched to Google Gemini (\(model))")
+    }
+
+    @objc private func selectGeminiModel(_ sender: NSMenuItem) {
+        guard let modelId = sender.representedObject as? String else { return }
+        UserDefaults.standard.set(modelId, forKey: "geminiModel")
+        setupMenu() // Refresh menu to update checkmarks
+        print("🔄 Switched Gemini model to \(modelId)")
+    }
+
+    @objc private func configureAPIKey() {
+        let alert = NSAlert()
+        alert.messageText = "Configure API Keys"
+        alert.informativeText = "Configure your AI provider API keys.\nKeys are stored securely in macOS Keychain."
+        alert.alertStyle = .informational
+
+        // Create container view for both text fields
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 80))
+
+        // OpenAI label and field
+        let openAILabel = NSTextField(labelWithString: "OpenAI API Key:")
+        openAILabel.frame = NSRect(x: 0, y: 56, width: 320, height: 20)
+        container.addSubview(openAILabel)
+
+        let openAIField = NSTextField(frame: NSRect(x: 0, y: 36, width: 320, height: 24))
+        openAIField.placeholderString = "sk-proj-..."
+        openAIField.stringValue = KeychainService.shared.getOpenAIKey() ?? ""
+        container.addSubview(openAIField)
+
+        // Gemini label and field
+        let geminiLabel = NSTextField(labelWithString: "Gemini API Key:")
+        geminiLabel.frame = NSRect(x: 0, y: 16, width: 320, height: 20)
+        container.addSubview(geminiLabel)
+
+        let geminiField = NSTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
+        geminiField.placeholderString = "AIza..."
+        geminiField.stringValue = KeychainService.shared.getGeminiKey() ?? ""
+        container.addSubview(geminiField)
+
+        alert.accessoryView = container
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+
+        let response = alert.runModal()
+
+        if response == .alertFirstButtonReturn {
+            // Save OpenAI key
+            let openAIKey = openAIField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !openAIKey.isEmpty {
+                if KeychainService.shared.saveOpenAIKey(openAIKey) {
+                    print("✅ OpenAI API key saved to Keychain")
+                } else {
+                    showAlert(title: "Error", message: "Failed to save OpenAI API key.")
+                    return
+                }
+            }
+
+            // Save Gemini key
+            let geminiKey = geminiField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !geminiKey.isEmpty {
+                if KeychainService.shared.saveGeminiKey(geminiKey) {
+                    print("✅ Gemini API key saved to Keychain")
+                } else {
+                    showAlert(title: "Error", message: "Failed to save Gemini API key.")
+                    return
+                }
+            }
+
+            showAlert(title: "Success", message: "API keys saved successfully!")
+        }
     }
 
     @objc private func openHistory() {

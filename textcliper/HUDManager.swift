@@ -48,15 +48,20 @@ class HUDManager {
             }
         )
 
-        // Create window
+        // Create window with dynamic height based on content
+        let hostingView = NSHostingView(rootView: hudView)
+        let fittingSize = hostingView.fittingSize
+        let windowWidth: CGFloat = 360
+        let windowHeight = max(fittingSize.height + 40, 240) // Add padding and ensure minimum height
+
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 320, height: 240),
+            contentRect: NSRect(x: 0, y: 0, width: windowWidth, height: windowHeight),
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
 
-        window.contentView = NSHostingView(rootView: hudView)
+        window.contentView = hostingView
         window.backgroundColor = .clear
         window.isOpaque = false
         window.level = .floating
@@ -68,10 +73,9 @@ class HUDManager {
         // Position at center of screen
         if let screen = NSScreen.main {
             let screenFrame = screen.visibleFrame
-            let windowFrame = window.frame
-            let x = screenFrame.midX - windowFrame.width / 2
-            let y = screenFrame.midY - windowFrame.height / 2
-            window.setFrame(NSRect(x: x, y: y, width: windowFrame.width, height: windowFrame.height), display: true)
+            let x = screenFrame.midX - windowWidth / 2
+            let y = screenFrame.midY - windowHeight / 2
+            window.setFrame(NSRect(x: x, y: y, width: windowWidth, height: windowHeight), display: true)
         }
 
         // Store strong reference before showing

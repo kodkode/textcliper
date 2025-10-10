@@ -84,7 +84,79 @@ class OCRService {
             return
         }
 
-        // Perform OCR on background thread
+        // Check if AI-enhanced mode is enabled
+        let aiEnabled = UserDefaults.standard.bool(forKey: "aiEnhancedOCREnabled")
+        let provider = UserDefaults.standard.string(forKey: "aiProvider") ?? "openai"
+
+        let hasAPIKey: Bool
+        if provider == "openai" {
+            hasAPIKey = KeychainService.shared.getOpenAIKey() != nil
+        } else {
+            hasAPIKey = KeychainService.shared.getGeminiKey() != nil
+        }
+
+        if aiEnabled && hasAPIKey {
+            // Use selected AI provider
+            if provider == "openai" {
+                print("🤖 AI-Enhanced OCR enabled - Using OpenAI GPT-5")
+                self.performOpenAIOCR(on: image, completion: completion)
+            } else {
+                print("🤖 AI-Enhanced OCR enabled - Using Google Gemini Flash")
+                self.performGeminiOCR(on: image, completion: completion)
+            }
+        } else {
+            // Use standard Vision OCR
+            print("📝 Using standard Vision OCR")
+            self.performStandardOCR(on: cgImage, completion: completion)
+        }
+    }
+
+    /// Perform AI-enhanced OCR using OpenAI
+    private func performOpenAIOCR(on image: NSImage, completion: @escaping (Result<String, OCRError>) -> Void) {
+        OpenAIService.shared.extractTextFromImage(image) { result in
+            switch result {
+            case .success(let text):
+                if text.isEmpty {
+                    completion(.failure(.noTextDetected))
+                } else {
+                    completion(.success(text))
+                }
+            case .failure(let error):
+                print("⚠️ OpenAI OCR failed: \(error), falling back to standard OCR")
+                // Fallback to standard Vision OCR if API fails
+                if let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+                    self.performStandardOCR(on: cgImage, completion: completion)
+                } else {
+                    completion(.failure(.ocrFailed))
+                }
+            }
+        }
+    }
+
+    /// Perform AI-enhanced OCR using Gemini
+    private func performGeminiOCR(on image: NSImage, completion: @escaping (Result<String, OCRError>) -> Void) {
+        GeminiService.shared.extractTextFromImage(image) { result in
+            switch result {
+            case .success(let text):
+                if text.isEmpty {
+                    completion(.failure(.noTextDetected))
+                } else {
+                    completion(.success(text))
+                }
+            case .failure(let error):
+                print("⚠️ Gemini OCR failed: \(error), falling back to standard OCR")
+                // Fallback to standard Vision OCR if API fails
+                if let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+                    self.performStandardOCR(on: cgImage, completion: completion)
+                } else {
+                    completion(.failure(.ocrFailed))
+                }
+            }
+        }
+    }
+
+    /// Perform standard Vision OCR
+    private func performStandardOCR(on cgImage: CGImage, completion: @escaping (Result<String, OCRError>) -> Void) {
         DispatchQueue.global(qos: .userInitiated).async {
             let request = VNRecognizeTextRequest { request, error in
                 if let error = error {
