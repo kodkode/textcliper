@@ -47,7 +47,7 @@ class GeminiService {
         }
 
         // Perform image encoding on background thread to avoid blocking
-        DispatchQueue.global(qos: .userInitiated).async {
+        DispatchQueue.global(qos: .userInitiated).async { [image] in
             // Convert image to base64 (optimized with compression)
             guard let base64Image = image.base64EncodedString() else {
                 DispatchQueue.main.async {
@@ -200,9 +200,9 @@ class GeminiService {
                         completion(.failure(.invalidResponse))
                     }
                 }
-
-                task.resume()
             }
+
+            task.resume()
         }
     }
 }
