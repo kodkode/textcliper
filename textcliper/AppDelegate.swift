@@ -159,15 +159,46 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
         let aiProviderMenu = NSMenu()
 
+        let currentProvider = UserDefaults.standard.string(forKey: "aiProvider") ?? "openai"
+
         let useOpenAIItem = NSMenuItem(
-            title: "OpenAI (GPT-5)",
+            title: "OpenAI",
             action: #selector(selectOpenAI),
             keyEquivalent: ""
         )
         useOpenAIItem.target = self
-        let currentProvider = UserDefaults.standard.string(forKey: "aiProvider") ?? "openai"
         useOpenAIItem.state = (currentProvider == "openai") ? .on : .off
         aiProviderMenu.addItem(useOpenAIItem)
+
+        // OpenAI model submenu
+        if currentProvider == "openai" {
+            aiProviderMenu.addItem(NSMenuItem.separator())
+
+            let openAIModelItem = NSMenuItem(title: "OpenAI Model", action: nil, keyEquivalent: "")
+            let openAIModelMenu = NSMenu()
+
+            let currentOpenAIModel = UserDefaults.standard.string(forKey: "openaiModel") ?? "gpt-4o"
+
+            let openAIModels = [
+                ("gpt-4o", "GPT-4o (Recommended)"),
+                ("gpt-4o-mini", "GPT-4o Mini (Faster)"),
+                ("gpt-4-turbo", "GPT-4 Turbo"),
+                ("gpt-4", "GPT-4"),
+                ("o1", "o1 (Reasoning)"),
+                ("o1-mini", "o1 Mini (Reasoning)")
+            ]
+
+            for (modelId, modelName) in openAIModels {
+                let modelItem = NSMenuItem(title: modelName, action: #selector(selectOpenAIModel(_:)), keyEquivalent: "")
+                modelItem.target = self
+                modelItem.representedObject = modelId
+                modelItem.state = (currentOpenAIModel == modelId) ? .on : .off
+                openAIModelMenu.addItem(modelItem)
+            }
+
+            openAIModelItem.submenu = openAIModelMenu
+            aiProviderMenu.addItem(openAIModelItem)
+        }
 
         let useGeminiItem = NSMenuItem(
             title: "Google Gemini",
@@ -185,14 +216,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let geminiModelItem = NSMenuItem(title: "Gemini Model", action: nil, keyEquivalent: "")
             let geminiModelMenu = NSMenu()
 
-            let currentGeminiModel = UserDefaults.standard.string(forKey: "geminiModel") ?? "gemini-1.5-pro"
+            let currentGeminiModel = UserDefaults.standard.string(forKey: "geminiModel") ?? "gemini-2.5-flash"
 
             let models = [
-                ("gemini-1.5-pro", "Gemini 1.5 Pro (Best for handwriting)"),
-                ("gemini-2.5-pro", "Gemini 2.5 Pro (Most accurate)"),
-                ("gemini-2.5-flash", "Gemini 2.5 Flash (Fast + thinking)"),
-                ("gemini-2.0-flash-thinking-exp", "Gemini 2.0 Flash Thinking"),
-                ("gemini-2.0-flash-exp", "Gemini 2.0 Flash (Fastest)")
+                ("gemini-2.5-flash", "Gemini 2.5 Flash (Recommended)"),
+                ("gemini-2.0-flash-exp", "Gemini 2.0 Flash Exp")
             ]
 
             for (modelId, modelName) in models {
@@ -338,13 +366,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func selectOpenAI() {
         UserDefaults.standard.set("openai", forKey: "aiProvider")
         setupMenu() // Refresh menu to update checkmarks
-        print("🔄 Switched to OpenAI (GPT-5)")
+        let model = UserDefaults.standard.string(forKey: "openaiModel") ?? "gpt-4o"
+        print("🔄 Switched to OpenAI (\(model))")
     }
 
     @objc private func selectGemini() {
         UserDefaults.standard.set("gemini", forKey: "aiProvider")
         setupMenu() // Refresh menu to update checkmarks
-        let model = UserDefaults.standard.string(forKey: "geminiModel") ?? "gemini-1.5-pro"
+        let model = UserDefaults.standard.string(forKey: "geminiModel") ?? "gemini-2.5-flash"
         print("🔄 Switched to Google Gemini (\(model))")
     }
 
@@ -353,6 +382,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         UserDefaults.standard.set(modelId, forKey: "geminiModel")
         setupMenu() // Refresh menu to update checkmarks
         print("🔄 Switched Gemini model to \(modelId)")
+    }
+
+    @objc private func selectOpenAIModel(_ sender: NSMenuItem) {
+        guard let modelId = sender.representedObject as? String else { return }
+        UserDefaults.standard.set(modelId, forKey: "openaiModel")
+        setupMenu() // Refresh menu to update checkmarks
+        print("🔄 Switched OpenAI model to \(modelId)")
     }
 
     @objc private func configureAPIKey() {

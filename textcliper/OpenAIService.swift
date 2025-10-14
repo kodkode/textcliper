@@ -20,7 +20,10 @@ class OpenAIService {
     static let shared = OpenAIService()
 
     private let apiEndpoint = "https://api.openai.com/v1/chat/completions"
-    private let model = "gpt-5" // GPT-5 full model for best accuracy
+
+    private var model: String {
+        return UserDefaults.standard.string(forKey: "openaiModel") ?? "gpt-4o"
+    }
 
     private init() {}
 
@@ -104,7 +107,7 @@ class OpenAIService {
             request.httpBody = jsonData
             request.timeoutInterval = 180  // 3 minutes for GPT-5 with reasoning
 
-            print("⏱️ [OpenAI] API request started...")
+            print("⏱️ [OpenAI] API request started (model: \(self.model))...")
 
             // Send request
             let task = URLSession.shared.dataTask(with: request) { data, response, error in

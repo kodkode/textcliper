@@ -1,0 +1,67 @@
+Here are potential features we could add to textcliper:
+📋 Clipboard Management
+History tracking - Keep last 20-50 OCR captures with timestamps
+Search history - Quick search through past captures
+Favorites/pins - Mark frequently used captures for easy access
+Export history - Save all captures to JSON/CSV
+
+🎨 OCR Enhancements
+Multiple language support - Let users select OCR language (currently locked to en-US)
+Table detection - Recognize tables and preserve structure
+Handwriting recognition - Support handwritten text extraction
+PDF OCR - Drag-drop PDF files for batch text extraction
+Live preview - Show OCR result before copying to clipboard
+⚡ Capture Modes
+Window capture - Click a window to capture it (not just selection)
+Full screen capture - Instant full screen OCR without selection
+Timed capture - Countdown timer before capture
+Multi-region - Capture and combine multiple regions in one operation
+Video/GIF OCR - Extract text from video frames or animated GIFs
+
+✨ Text Processing
+Format detection - Recognize emails, URLs, phone numbers and make clickable
+Auto-translation - Translate captured text to selected language
+Text cleanup - Remove extra spaces, fix line breaks, normalize formatting
+Smart quotes/dashes - Convert straight quotes to curly, hyphens to em-dashes
+Case conversion - Quick UPPERCASE, lowercase, Title Case options
+
+🔧 Workflow & Automation
+Custom hotkeys - Multiple hotkeys for different capture modes
+Auto-paste - Option to auto-paste after capture (skip clipboard)
+Snippet templates - Wrap captured text in custom templates
+Shortcuts integration - macOS Shortcuts support for automation
+AppleScript support - Let other apps trigger captures
+
+💾 Export & Integration
+Auto-save to file - Save each capture to designated folder
+Cloud sync - Sync history to iCloud
+Share extensions - Send directly to Notes, Mail, Messages
+Markdown export - Format as code blocks or quotes
+API/webhook - POST captures to custom endpoints
+
+🎯 UI/UX Improvements
+Menu bar preview - Show last capture in menu dropdown
+Sound feedback - Optional sound effects for capture/copy
+Visual feedback - Flash screen border on successful capture
+Themes - Dark/light mode for editor window
+Font customization - Choose editor font and size
+
+📊 Analytics & Insights
+Usage stats - Track captures per day/week/month
+Most captured apps - See which apps you OCR from most
+Character/word count - Stats on captured text
+Time saved calculator - Estimate typing time saved
+
+🛡️ Privacy & Security
+Sensitive text detection - Warn before copying passwords/credit cards
+Auto-redaction - Blur/hide certain patterns in captures
+Encrypted history - Encrypt stored capture history
+Auto-clear - Clear history after X days/launches
+
+🌟 Advanced Features
+Batch processing - Queue multiple screenshots for OCR
+Image preprocessing - Auto-enhance contrast/brightness before OCR
+Confidence scoring - Show OCR accuracy percentage
+Smart correction - AI-powered spelling/grammar fixes
+Receipt parser - Extract structured data from receipts
+Which features interest you most? I can help implement any of these! 🚀

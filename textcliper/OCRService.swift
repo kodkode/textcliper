@@ -98,10 +98,12 @@ class OCRService {
         if aiEnabled && hasAPIKey {
             // Use selected AI provider
             if provider == "openai" {
-                print("🤖 AI-Enhanced OCR enabled - Using OpenAI GPT-5")
+                let model = UserDefaults.standard.string(forKey: "openaiModel") ?? "gpt-4o"
+                print("🤖 AI-Enhanced OCR enabled - Using OpenAI (\(model))")
                 self.performOpenAIOCR(on: image, completion: completion)
             } else {
-                print("🤖 AI-Enhanced OCR enabled - Using Google Gemini Flash")
+                let model = UserDefaults.standard.string(forKey: "geminiModel") ?? "gemini-2.5-flash"
+                print("🤖 AI-Enhanced OCR enabled - Using Google Gemini (\(model))")
                 self.performGeminiOCR(on: image, completion: completion)
             }
         } else {
