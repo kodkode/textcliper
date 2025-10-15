@@ -96,6 +96,11 @@ class OCRService {
         }
 
         if aiEnabled && hasAPIKey {
+            // Show loading animation for AI-Enhanced OCR
+            DispatchQueue.main.async {
+                HUDManager.shared.showLoadingHUD()
+            }
+
             // Use selected AI provider
             if provider == "openai" {
                 let model = UserDefaults.standard.string(forKey: "openaiModel") ?? "gpt-4o"

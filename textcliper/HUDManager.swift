@@ -21,6 +21,12 @@ class HUDManager {
         }
     }
 
+    func showLoadingHUD() {
+        DispatchQueue.main.async { [weak self] in
+            self?.showLoadingHUDOnMain()
+        }
+    }
+
     func dismissHUD() {
         DispatchQueue.main.async { [weak self] in
             self?.hideTimer?.cancel()
@@ -97,6 +103,59 @@ class HUDManager {
         }
         hideTimer = timer
         DispatchQueue.main.asyncAfter(deadline: .now() + actualDuration, execute: timer)
+    }
+
+    private func showLoadingHUDOnMain() {
+        // Close existing HUD if present
+        hideTimer?.cancel()
+        if let existing = currentWindow {
+            existing.close()
+            currentWindow = nil
+        }
+
+        // Create loading view
+        let loadingView = LoadingHUDView()
+
+        // Create window
+        let hostingView = NSHostingView(rootView: loadingView)
+        let windowWidth: CGFloat = 360
+        let windowHeight: CGFloat = 120
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: windowWidth, height: windowHeight),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+
+        window.contentView = hostingView
+        window.backgroundColor = .clear
+        window.isOpaque = false
+        window.level = .floating
+        window.hasShadow = false
+        window.ignoresMouseEvents = true // No interaction for loading
+        window.collectionBehavior = [.canJoinAllSpaces, .stationary]
+        window.isReleasedWhenClosed = false
+
+        // Position at center of screen
+        if let screen = NSScreen.main {
+            let screenFrame = screen.visibleFrame
+            let x = screenFrame.midX - windowWidth / 2
+            let y = screenFrame.midY - windowHeight / 2
+            window.setFrame(NSRect(x: x, y: y, width: windowWidth, height: windowHeight), display: true)
+        }
+
+        // Store strong reference before showing
+        currentWindow = window
+
+        // Show with animation
+        window.alphaValue = 0
+        window.orderFront(nil)
+
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 0.3
+            window.animator().alphaValue = 1.0
+        })
     }
 
     private func hideHUDAnimated() {

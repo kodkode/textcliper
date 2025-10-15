@@ -20,9 +20,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var capturedText: String = ""
     private var hotkeyRegistered = false
     private var autoEditEnabled = false
-    private var shareActionsEnabled = true // Enable share actions by default
-    private var currentKeyCode: UInt32 = UInt32(kVK_ANSI_8)
-    private var currentModifiers: UInt32 = UInt32(cmdKey | shiftKey)
+    private var shareActionsEnabled = false // Disable share actions by default
+    private var currentKeySequence: KeySequence = KeySequence(legacyKeyCode: UInt32(kVK_ANSI_8), legacyModifiers: UInt32(cmdKey | shiftKey))
     private var captureMenuItem: NSMenuItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -69,8 +68,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Try to register regardless of check result
         // The check sometimes returns false even when permission is granted (Xcode bug)
         let success = HotkeyManager.shared.registerHotkey(
-            keyCode: currentKeyCode,
-            modifiers: currentModifiers
+            sequence: currentKeySequence
         ) { [weak self] in
             print("🔥 Hotkey triggered!")
             self?.triggerCaptureAndCopy()
@@ -78,7 +76,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         if success {
             hotkeyRegistered = true
-            print("✅ Hotkey successfully registered (⌘⇧8)")
+            print("✅ Hotkey successfully registered: \(currentKeySequence.displayString())")
         } else {
             print("❌ Hotkey registration failed - accessibility permission may not be granted")
             print("   Go to: System Settings > Privacy & Security > Accessibility")
@@ -480,25 +478,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Close existing window if open
         hotkeyWindow?.close()
 
-        // Create binding holders
-        let keyCodeHolder = KeyCodeHolder(keyCode: currentKeyCode)
-        let modifiersHolder: ModifiersHolder = ModifiersHolder(modifiers: currentModifiers)
+        // Create binding holder for sequence
+        let sequenceHolder = KeySequenceHolder(sequence: currentKeySequence)
 
         let contentView = HotkeyRecorderWindow(
-            keyCode: keyCodeHolder.binding,
-            modifiers: modifiersHolder.binding
-        ) { [weak self] newKeyCode, newModifiers in
-            self?.updateHotkey(keyCode: newKeyCode, modifiers: newModifiers)
+            sequence: sequenceHolder.binding
+        ) { [weak self] newSequence in
+            self?.updateHotkey(sequence: newSequence)
         }
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 450, height: 250),
+            contentRect: NSRect(x: 0, y: 0, width: 550, height: 320),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
         )
         window.contentView = NSHostingView(rootView: contentView)
-        window.title = "Configure Hotkey"
+        window.title = "Configure Hotkey Sequence"
         window.center()
         window.level = .floating
         window.makeKeyAndOrderFront(nil)
@@ -508,9 +504,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         hotkeyWindow = window
     }
 
-    private func updateHotkey(keyCode: UInt32, modifiers: UInt32) {
-        currentKeyCode = keyCode
-        currentModifiers = modifiers
+    private func updateHotkey(sequence: KeySequence) {
+        currentKeySequence = sequence
         saveHotkeyPreferences()
         updateCaptureMenuItemKeyEquivalent()
         attemptHotkeyRegistration()
@@ -519,87 +514,40 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func updateCaptureMenuItemKeyEquivalent() {
         guard let menuItem = captureMenuItem else { return }
 
-        // Convert keyCode to character
-        let keyChar = keyCodeToCharacter(currentKeyCode)
-        menuItem.keyEquivalent = keyChar
+        // For sequences, we can't use traditional menu shortcuts
+        // Instead, update the menu title to show the sequence
+        let sequenceDisplay = currentKeySequence.compactDisplayString()
+        menuItem.title = "Capture Screenshot (\(sequenceDisplay))"
 
-        // Convert Carbon modifiers to NSEvent.ModifierFlags
-        var modifierMask: NSEvent.ModifierFlags = []
-        if (currentModifiers & UInt32(cmdKey)) != 0 {
-            modifierMask.insert(.command)
-        }
-        if (currentModifiers & UInt32(shiftKey)) != 0 {
-            modifierMask.insert(.shift)
-        }
-        if (currentModifiers & UInt32(optionKey)) != 0 {
-            modifierMask.insert(.option)
-        }
-        if (currentModifiers & UInt32(controlKey)) != 0 {
-            modifierMask.insert(.control)
-        }
-
-        menuItem.keyEquivalentModifierMask = modifierMask
-    }
-
-    private func keyCodeToCharacter(_ keyCode: UInt32) -> String {
-        // Map common key codes to characters
-        switch Int(keyCode) {
-        case kVK_ANSI_A: return "a"
-        case kVK_ANSI_B: return "b"
-        case kVK_ANSI_C: return "c"
-        case kVK_ANSI_D: return "d"
-        case kVK_ANSI_E: return "e"
-        case kVK_ANSI_F: return "f"
-        case kVK_ANSI_G: return "g"
-        case kVK_ANSI_H: return "h"
-        case kVK_ANSI_I: return "i"
-        case kVK_ANSI_J: return "j"
-        case kVK_ANSI_K: return "k"
-        case kVK_ANSI_L: return "l"
-        case kVK_ANSI_M: return "m"
-        case kVK_ANSI_N: return "n"
-        case kVK_ANSI_O: return "o"
-        case kVK_ANSI_P: return "p"
-        case kVK_ANSI_Q: return "q"
-        case kVK_ANSI_R: return "r"
-        case kVK_ANSI_S: return "s"
-        case kVK_ANSI_T: return "t"
-        case kVK_ANSI_U: return "u"
-        case kVK_ANSI_V: return "v"
-        case kVK_ANSI_W: return "w"
-        case kVK_ANSI_X: return "x"
-        case kVK_ANSI_Y: return "y"
-        case kVK_ANSI_Z: return "z"
-        case kVK_ANSI_0: return "0"
-        case kVK_ANSI_1: return "1"
-        case kVK_ANSI_2: return "2"
-        case kVK_ANSI_3: return "3"
-        case kVK_ANSI_4: return "4"
-        case kVK_ANSI_5: return "5"
-        case kVK_ANSI_6: return "6"
-        case kVK_ANSI_7: return "7"
-        case kVK_ANSI_8: return "8"
-        case kVK_ANSI_9: return "9"
-        case kVK_Space: return " "
-        case kVK_Return: return "\r"
-        case kVK_Tab: return "\t"
-        case kVK_Delete: return "\u{8}"
-        case kVK_Escape: return "\u{1b}"
-        default: return ""
-        }
+        // Clear any key equivalent
+        menuItem.keyEquivalent = ""
+        menuItem.keyEquivalentModifierMask = []
     }
 
     private func saveHotkeyPreferences() {
-        UserDefaults.standard.set(currentKeyCode, forKey: "hotkeyKeyCode")
-        UserDefaults.standard.set(currentModifiers, forKey: "hotkeyModifiers")
+        // Save as JSON
+        if let jsonString = currentKeySequence.toJSONString() {
+            UserDefaults.standard.set(jsonString, forKey: "hotkeySequence")
+            print("💾 Saved hotkey sequence: \(currentKeySequence.displayString())")
+        }
     }
 
     private func loadHotkeyPreferences() {
-        if let savedKeyCode = UserDefaults.standard.object(forKey: "hotkeyKeyCode") as? UInt32 {
-            currentKeyCode = savedKeyCode
+        // Try to load new JSON format first
+        if let jsonString = UserDefaults.standard.string(forKey: "hotkeySequence"),
+           let sequence = KeySequence.fromJSONString(jsonString) {
+            currentKeySequence = sequence
+            print("📂 Loaded hotkey sequence: \(currentKeySequence.displayString())")
+            return
         }
-        if let savedModifiers = UserDefaults.standard.object(forKey: "hotkeyModifiers") as? UInt32 {
-            currentModifiers = savedModifiers
+
+        // Fall back to legacy format (keyCode + modifiers)
+        if let savedKeyCode = UserDefaults.standard.object(forKey: "hotkeyKeyCode") as? UInt32,
+           let savedModifiers = UserDefaults.standard.object(forKey: "hotkeyModifiers") as? UInt32 {
+            currentKeySequence = KeySequence(legacyKeyCode: savedKeyCode, legacyModifiers: savedModifiers)
+            print("📂 Loaded legacy hotkey, converted to sequence: \(currentKeySequence.displayString())")
+            // Save in new format
+            saveHotkeyPreferences()
         }
     }
 
@@ -651,6 +599,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             // If auto-edit is enabled, open editor directly (skip HUD)
             if autoEditEnabled {
+                HUDManager.shared.dismissHUD() // Dismiss loading HUD if present
                 openEditWindow()
             } else {
                 // Show custom HUD with share actions
@@ -720,6 +669,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func handleOCRError(_ error: OCRError) {
+        // Dismiss any loading HUD
+        HUDManager.shared.dismissHUD()
+
         switch error {
         case .screenshotFailed:
             // User likely cancelled - no alert needed
@@ -882,33 +834,17 @@ private class TextHolder: ObservableObject {
 }
 
 /// Helper class to create a binding for keyCode
-private class KeyCodeHolder: ObservableObject {
-    @Published var keyCode: UInt32
+private class KeySequenceHolder: ObservableObject {
+    @Published var sequence: KeySequence
 
-    init(keyCode: UInt32) {
-        self.keyCode = keyCode
+    init(sequence: KeySequence) {
+        self.sequence = sequence
     }
 
-    var binding: Binding<UInt32> {
+    var binding: Binding<KeySequence> {
         Binding(
-            get: { self.keyCode },
-            set: { self.keyCode = $0 }
-        )
-    }
-}
-
-/// Helper class to create a binding for modifiers
-private class ModifiersHolder: ObservableObject {
-    @Published var modifiers: UInt32
-
-    init(modifiers: UInt32) {
-        self.modifiers = modifiers
-    }
-
-    var binding: Binding<UInt32> {
-        Binding(
-            get: { self.modifiers },
-            set: { self.modifiers = $0 }
+            get: { self.sequence },
+            set: { self.sequence = $0 }
         )
     }
 }
