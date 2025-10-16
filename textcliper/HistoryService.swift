@@ -12,13 +12,15 @@ class HistoryService: ObservableObject {
     static let shared = HistoryService()
 
     @Published private(set) var items: [HistoryItem] = []
-    private let maxItems = 50 // Keep last 50 items
+    private let retentionDays = 30 // Keep items from last 30 days
+    private let maxItems = 1000 // Safety limit to prevent excessive storage
     private let storageKey = "captureHistory"
     private let encryptedStorageKey = "captureHistoryEncrypted"
     private let encryptionEnabled = true // Enable encryption by default
 
     private init() {
         loadHistory()
+        cleanupOldItems()
     }
 
     // MARK: - Public Methods
@@ -26,10 +28,8 @@ class HistoryService: ObservableObject {
     func addItem(_ item: HistoryItem) {
         items.insert(item, at: 0)
 
-        // Trim to max items
-        if items.count > maxItems {
-            items = Array(items.prefix(maxItems))
-        }
+        // Clean up old items
+        cleanupOldItems()
 
         saveHistory()
     }
@@ -63,6 +63,25 @@ class HistoryService: ObservableObject {
 
     func getUnsyncedItems() -> [HistoryItem] {
         return items.filter { !$0.isSynced }
+    }
+
+    // MARK: - Cleanup
+
+    private func cleanupOldItems() {
+        let cutoffDate = Calendar.current.date(byAdding: .day, value: -retentionDays, to: Date()) ?? Date()
+
+        let itemsBeforeCleanup = items.count
+        items.removeAll { $0.timestamp < cutoffDate }
+
+        // Safety check: enforce max items limit
+        if items.count > maxItems {
+            items = Array(items.prefix(maxItems))
+        }
+
+        let itemsRemoved = itemsBeforeCleanup - items.count
+        if itemsRemoved > 0 {
+            print("🗑️ Cleaned up \(itemsRemoved) items older than \(retentionDays) days")
+        }
     }
 
     // MARK: - Storage

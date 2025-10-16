@@ -574,20 +574,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func handleExtractedText(_ text: String) {
-        capturedText = text
+        // Automatically process text (detect and format tables)
+        let processedText = TextProcessingService.shared.autoProcessCapture(text)
+        capturedText = processedText
 
         // Copy to clipboard
-        let copyResult = ClipboardManager.shared.copyToClipboard(text)
+        let copyResult = ClipboardManager.shared.copyToClipboard(processedText)
 
         switch copyResult {
         case .success:
-            let preview = String(text.prefix(100))
-            let ellipsis = text.count > 100 ? "..." : ""
-            let characterCount = text.count
-            let wordCount = text.split(separator: " ").count
+            let preview = String(processedText.prefix(100))
+            let ellipsis = processedText.count > 100 ? "..." : ""
+            let characterCount = processedText.count
+            let wordCount = processedText.split(separator: " ").count
 
-            // Add to history
-            let historyItem = HistoryItem(text: text)
+            // Add to history (save processed text)
+            let historyItem = HistoryItem(text: processedText)
             HistoryService.shared.addItem(historyItem)
 
             // Sync to iCloud if enabled
