@@ -181,7 +181,10 @@ class OCRService {
                     return
                 }
 
-                let recognizedText = observations.compactMap { observation in
+                // Sort observations spatially for proper multi-column reading
+                let sortedObservations = self.sortObservationsForReading(observations)
+
+                let recognizedText = sortedObservations.compactMap { observation in
                     observation.topCandidates(1).first?.string
                 }.joined(separator: "\n")
 
@@ -192,8 +195,9 @@ class OCRService {
                     return
                 }
 
-                // Clean the text
-                let cleaned = self.cleanText(recognizedText)
+                // Clean the text and fix hyphenation
+                var cleaned = self.cleanText(recognizedText)
+                cleaned = self.fixHyphenation(cleaned)
 
                 DispatchQueue.main.async {
                     completion(.success(cleaned))
@@ -301,6 +305,63 @@ class OCRService {
                 }
             }
         }
+    }
+
+    /// Sorts text observations for proper reading order (handles multi-column layouts)
+    /// - Parameter observations: Raw Vision text observations
+    /// - Returns: Observations sorted for natural reading flow
+    private func sortObservationsForReading(_ observations: [VNRecognizedTextObservation]) -> [VNRecognizedTextObservation] {
+        guard !observations.isEmpty else { return observations }
+
+        // Detect if text is in columns by analyzing horizontal positions
+        let xPositions = observations.map { $0.boundingBox.origin.x }
+        let avgX = xPositions.reduce(0, +) / Double(xPositions.count)
+
+        // Group observations into left and right columns
+        var leftColumn: [VNRecognizedTextObservation] = []
+        var rightColumn: [VNRecognizedTextObservation] = []
+
+        for obs in observations {
+            if obs.boundingBox.origin.x < avgX {
+                leftColumn.append(obs)
+            } else {
+                rightColumn.append(obs)
+            }
+        }
+
+        // Check if we actually have two distinct columns
+        let hasColumns = leftColumn.count > 3 && rightColumn.count > 3
+
+        if hasColumns {
+            print("📰 Detected two-column layout: \(leftColumn.count) left, \(rightColumn.count) right")
+
+            // Sort each column top-to-bottom (Vision coordinates are flipped, so we sort descending)
+            leftColumn.sort { $0.boundingBox.origin.y > $1.boundingBox.origin.y }
+            rightColumn.sort { $0.boundingBox.origin.y > $1.boundingBox.origin.y }
+
+            // Return left column first, then right column
+            return leftColumn + rightColumn
+        } else {
+            // Single column: just sort top-to-bottom
+            return observations.sorted { $0.boundingBox.origin.y > $1.boundingBox.origin.y }
+        }
+    }
+
+    /// Fixes hyphenation artifacts from multi-line text
+    /// - Parameter text: Text with potential hyphenation issues
+    /// - Returns: Text with hyphenation fixed
+    private func fixHyphenation(_ text: String) -> String {
+        var result = text
+
+        // Fix words split across lines with hyphens
+        // Pattern: "word-\npart" -> "wordpart"
+        result = result.replacingOccurrences(
+            of: "-\\s*\\n\\s*",
+            with: "",
+            options: .regularExpression
+        )
+
+        return result
     }
 
     /// Cleans OCR text by removing artifact lines

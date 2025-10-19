@@ -347,9 +347,8 @@ class TextProcessingService {
         var headerSection: [String] = []
         var valueSection: [String] = []
         var foundDivider = false
-        var dividerIndex = -1
 
-        for (index, line) in lines.enumerated() {
+        for (_, line) in lines.enumerated() {
             let nsLine = line as NSString
             let hasPrices = !(priceRegex?.matches(in: line, range: NSRange(location: 0, length: nsLine.length)).isEmpty ?? true)
 
@@ -358,7 +357,6 @@ class TextProcessingService {
 
             if isSectionHeader && !foundDivider {
                 foundDivider = true
-                dividerIndex = index
                 continue
             }
 
