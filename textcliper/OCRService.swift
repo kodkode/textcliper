@@ -199,6 +199,9 @@ class OCRService {
                 var cleaned = self.cleanText(recognizedText)
                 cleaned = self.fixHyphenation(cleaned)
 
+                // Reconstruct natural paragraphs
+                cleaned = self.reconstructParagraphs(cleaned)
+
                 DispatchQueue.main.async {
                     completion(.success(cleaned))
                 }
@@ -329,11 +332,22 @@ class OCRService {
             }
         }
 
-        // Check if we actually have two distinct columns
-        let hasColumns = leftColumn.count > 3 && rightColumn.count > 3
+        // Check if we actually have two distinct columns by ensuring there is an actual gap between groups.
+        let leftColumnMaxX = leftColumn.compactMap { observation in
+            observation.boundingBox.maxX
+        }.max() ?? 0
+        let rightColumnMinX = rightColumn.compactMap { observation in
+            observation.boundingBox.minX
+        }.min() ?? 1
+        let horizontalGap = rightColumnMinX - leftColumnMaxX
+        let gapThreshold: CGFloat = 0.05
+        let hasColumns = leftColumn.count > 3 &&
+            rightColumn.count > 3 &&
+            horizontalGap > gapThreshold
 
         if hasColumns {
-            print("📰 Detected two-column layout: \(leftColumn.count) left, \(rightColumn.count) right")
+            let gapString = String(format: "%.2f", Double(horizontalGap))
+            print("📰 Detected two-column layout (gap \(gapString)): \(leftColumn.count) left, \(rightColumn.count) right")
 
             // Sort each column top-to-bottom (Vision coordinates are flipped, so we sort descending)
             leftColumn.sort { $0.boundingBox.origin.y > $1.boundingBox.origin.y }
@@ -362,6 +376,100 @@ class OCRService {
         )
 
         return result
+    }
+
+    /// Reconstructs natural paragraphs from OCR line-by-line output
+    /// - Parameter text: Text with line breaks from OCR
+    /// - Returns: Text with intelligent paragraph formatting
+    private func reconstructParagraphs(_ text: String) -> String {
+        let lines = text.components(separatedBy: .newlines)
+        var paragraphs: [String] = []
+        var currentParagraph: [String] = []
+
+        for (index, line) in lines.enumerated() {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+            // Skip empty lines - they indicate paragraph breaks
+            if trimmed.isEmpty {
+                if !currentParagraph.isEmpty {
+                    paragraphs.append(currentParagraph.joined(separator: " "))
+                    currentParagraph = []
+                }
+                continue
+            }
+
+            // Check if this line should start a new paragraph
+            let shouldStartNewParagraph = self.shouldStartNewParagraph(
+                currentLine: trimmed,
+                previousLine: index > 0 ? lines[index - 1].trimmingCharacters(in: .whitespaces) : nil,
+                currentParagraph: currentParagraph
+            )
+
+            if shouldStartNewParagraph && !currentParagraph.isEmpty {
+                // Finish current paragraph and start new one
+                paragraphs.append(currentParagraph.joined(separator: " "))
+                currentParagraph = [trimmed]
+            } else {
+                // Add to current paragraph
+                currentParagraph.append(trimmed)
+            }
+        }
+
+        // Add final paragraph if exists
+        if !currentParagraph.isEmpty {
+            paragraphs.append(currentParagraph.joined(separator: " "))
+        }
+
+        // Join paragraphs with double newline
+        return paragraphs.joined(separator: "\n\n")
+    }
+
+    /// Determines if a line should start a new paragraph
+    /// - Parameters:
+    ///   - currentLine: The current line being processed
+    ///   - previousLine: The previous line (if any)
+    ///   - currentParagraph: Lines accumulated in current paragraph
+    /// - Returns: True if this line should start a new paragraph
+    private func shouldStartNewParagraph(currentLine: String, previousLine: String?, currentParagraph: [String]) -> Bool {
+        // First line always starts a paragraph
+        guard let prev = previousLine, !prev.isEmpty else {
+            return currentParagraph.isEmpty
+        }
+
+        // Sentences ending with period, exclamation, or question mark likely end paragraphs
+        let sentenceEnders: Set<Character> = [".", "!", "?", "\"", "'"]
+        let prevEndsWithPunctuation = prev.last.map { sentenceEnders.contains($0) } ?? false
+
+        // Lines that start with capital letters after sentence-ending punctuation
+        let startsWithCapital = currentLine.first?.isUppercase ?? false
+
+        // Check for common paragraph starters
+        let paragraphStarters = ["In ", "The ", "When ", "Originally ", "However,", "Therefore,", "According to"]
+        let hasParagraphStarter = paragraphStarters.contains { currentLine.hasPrefix($0) }
+
+        // Very short previous lines might indicate list items or headers
+        let prevIsShort = prev.count < 50
+
+        // Check if previous line looks complete (ends with period/punctuation)
+        if prevEndsWithPunctuation && startsWithCapital && hasParagraphStarter {
+            return true
+        }
+
+        // Short previous line + capital start = likely new paragraph/section
+        if prevIsShort && prevEndsWithPunctuation && startsWithCapital {
+            return true
+        }
+
+        // Check for citation/reference patterns like "[14]"
+        let citationPattern = "\\[\\d+\\]"
+        if prev.range(of: citationPattern, options: .regularExpression) != nil {
+            // Previous line has a citation, current might be new paragraph
+            if startsWithCapital {
+                return true
+            }
+        }
+
+        return false
     }
 
     /// Cleans OCR text by removing artifact lines
