@@ -70,7 +70,7 @@ class OpenAIService {
                         "content": [
                             [
                                 "type": "text",
-                                "text": "Extract all text from this image. Return ONLY the extracted text with no additional commentary, explanations, or formatting. Preserve the original line breaks and spacing as much as possible."
+                                "text": "Extract all text from this image exactly as it appears. If the text is in multiple columns, read left-to-right, top-to-bottom. DO NOT convert to tables or add markdown formatting. DO NOT add headers or structure. Return ONLY the plain extracted text, preserving paragraph breaks but treating this as prose/document text, not tabular data."
                             ],
                             [
                                 "type": "image_url",
