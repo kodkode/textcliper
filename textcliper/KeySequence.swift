@@ -78,21 +78,30 @@ struct KeySequence: Codable, Equatable {
     private func formatKeyPress(_ press: KeyPress) -> String {
         var result = ""
 
-        // Add modifier symbols in standard macOS order
-        if press.modifiers & UInt32(controlKey) != 0 {
-            result += "⌃"
-        }
-        if press.modifiers & UInt32(optionKey) != 0 {
-            result += "⌥"
-        }
-        if press.modifiers & UInt32(shiftKey) != 0 {
-            result += "⇧"
-        }
-        if press.modifiers & UInt32(cmdKey) != 0 {
-            result += "⌘"
-        }
+        // Check if this keypress is itself a modifier key
+        let isModifierKey = [54, 55, 56, 58, 59, 60, 61, 62].contains(press.keyCode)
 
-        result += keyCodeToString(press.keyCode)
+        // If it's a modifier key being pressed, don't show the modifier symbols
+        // Just show the key itself (e.g., "⇧" not "⇧⇧")
+        if isModifierKey {
+            result = keyCodeToString(press.keyCode)
+        } else {
+            // Add modifier symbols in standard macOS order
+            if press.modifiers & UInt32(controlKey) != 0 {
+                result += "⌃"
+            }
+            if press.modifiers & UInt32(optionKey) != 0 {
+                result += "⌥"
+            }
+            if press.modifiers & UInt32(shiftKey) != 0 {
+                result += "⇧"
+            }
+            if press.modifiers & UInt32(cmdKey) != 0 {
+                result += "⌘"
+            }
+
+            result += keyCodeToString(press.keyCode)
+        }
 
         return result
     }

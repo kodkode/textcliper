@@ -168,26 +168,15 @@ struct HotkeyRecorderWindow: View {
         var keyPress: KeyPress?
 
         if event.type == .keyDown {
-            // Regular key pressed
+            // Regular key pressed - this is what we want to record
+            // It will include any modifiers that were held down
             let keyCode = UInt32(event.keyCode)
             keyPress = KeyPress(keyCode: keyCode, modifiers: modifiers)
         } else if event.type == .flagsChanged {
-            // Modifier key pressed/released
-            if isModifierKeyCode(UInt32(event.keyCode)) {
-                let currentModifiers = modifiers
-                let previousModifiers: UInt32
-
-                if let lastPress = recordedPresses.last {
-                    previousModifiers = lastPress.modifiers
-                } else {
-                    previousModifiers = 0
-                }
-
-                // Only record when modifier is PRESSED (not released)
-                if currentModifiers > previousModifiers {
-                    keyPress = KeyPress(keyCode: UInt32(event.keyCode), modifiers: previousModifiers)
-                }
-            }
+            // Modifier key pressed/released - IGNORE THIS
+            // We don't want to record modifier keys separately
+            // They will be recorded as part of the next regular keyDown event
+            return
         }
 
         guard let press = keyPress else {
