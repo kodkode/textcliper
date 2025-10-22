@@ -120,8 +120,9 @@ class HotkeyManager {
             keypressBuffer.removeFirst()
         }
 
-        // Clean old entries (older than max timing constraint)
-        if let sequence = registeredSequence {
+        // Clean old entries ONLY for multi-key sequences
+        // For single-key combos (like Cmd+Shift+8), we don't need timing-based cleanup
+        if let sequence = registeredSequence, sequence.count > 1 {
             let cutoffTime = now.addingTimeInterval(-sequence.maxTimeBetweenKeys * Double(sequence.count))
             keypressBuffer.removeAll { $0.time < cutoffTime }
         }
