@@ -15,9 +15,9 @@ class HUDManager {
 
     private init() {}
 
-    func showHUD(message: String, characterCount: Int, wordCount: Int, fullText: String = "", showActions: Bool = false, duration: TimeInterval = 2.5) {
+    func showHUD(message: String, characterCount: Int, wordCount: Int, fullText: String = "", showActions: Bool = false, isAdditive: Bool = false, duration: TimeInterval = 2.5) {
         DispatchQueue.main.async { [weak self] in
-            self?.showHUDOnMain(message: message, characterCount: characterCount, wordCount: wordCount, fullText: fullText, showActions: showActions, duration: duration)
+            self?.showHUDOnMain(message: message, characterCount: characterCount, wordCount: wordCount, fullText: fullText, showActions: showActions, isAdditive: isAdditive, duration: duration)
         }
     }
 
@@ -34,7 +34,7 @@ class HUDManager {
         }
     }
 
-    private func showHUDOnMain(message: String, characterCount: Int, wordCount: Int, fullText: String, showActions: Bool, duration: TimeInterval) {
+    private func showHUDOnMain(message: String, characterCount: Int, wordCount: Int, fullText: String, showActions: Bool, isAdditive: Bool, duration: TimeInterval) {
         // Close existing HUD if present
         hideTimer?.cancel()
         if let existing = currentWindow {
@@ -49,6 +49,7 @@ class HUDManager {
             wordCount: wordCount,
             fullText: fullText,
             showActions: showActions,
+            isAdditive: isAdditive,
             onShare: { [weak self] destination in
                 self?.handleShare(text: fullText, destination: destination)
             }

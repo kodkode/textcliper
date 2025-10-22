@@ -383,6 +383,29 @@ class OCRService {
     /// - Returns: Text with intelligent paragraph formatting
     private func reconstructParagraphs(_ text: String) -> String {
         let lines = text.components(separatedBy: .newlines)
+
+        // Detect if this is a list (file list, bullet list, etc.)
+        // Lists have: short lines, many lines, similar structure
+        let nonEmptyLines = lines.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        let avgLineLength = nonEmptyLines.isEmpty ? 0 : nonEmptyLines.reduce(0) { $0 + $1.count } / nonEmptyLines.count
+        let lineCount = nonEmptyLines.count
+
+        // If we have many short lines (like a file list), don't reconstruct - keep as list
+        // Criteria: 5+ lines with average length < 50 characters
+        if lineCount >= 5 && avgLineLength < 50 {
+            // This looks like a list - preserve line breaks
+            return text
+        }
+
+        // Also check if many lines end with common file extensions or similar patterns
+        let fileExtensionPattern = "\\.(swift|txt|md|js|py|java|c|cpp|h|json|xml|html|css)$"
+        let linesWithExtensions = nonEmptyLines.filter { $0.range(of: fileExtensionPattern, options: .regularExpression) != nil }
+        if linesWithExtensions.count > lineCount / 2 {
+            // Majority are filenames - keep as list
+            return text
+        }
+
+        // Otherwise, it's natural text - reconstruct paragraphs
         var paragraphs: [String] = []
         var currentParagraph: [String] = []
 
@@ -472,23 +495,70 @@ class OCRService {
         return false
     }
 
-    /// Cleans OCR text by removing artifact lines
+    /// Cleans OCR text by removing artifact lines and unwanted symbols
     /// - Parameter text: Raw OCR text
     /// - Returns: Cleaned text
     private func cleanText(_ text: String) -> String {
         let lines = text.components(separatedBy: .newlines)
-        let cleaned = lines.filter { line in
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
 
-            // Keep empty lines and short lines
-            if trimmed.count < 3 {
-                return true
+        let cleaned = lines.compactMap { line -> String? in
+            var trimmed = line.trimmingCharacters(in: .whitespaces)
+
+            // Remove empty lines
+            if trimmed.isEmpty {
+                return nil
+            }
+
+            // Only remove very specific UI icons that appear as single characters before text
+            // Pattern: single non-word char at start followed by space, but preserve dots, hyphens, etc.
+            // Only target common sidebar icons: ›, •, ▸, v (checkbox), etc.
+            let iconPattern = "^[›•▸▾▴◂УЎ⌘⌥⇧⌃⏵⏴▶▼≡☰ãv=¥]+\\s+"
+            trimmed = trimmed.replacingOccurrences(
+                of: iconPattern,
+                with: "",
+                options: .regularExpression
+            )
+
+            // Remove these same icons if they appear at the end
+            let trailingIconPattern = "\\s+[›•▸▾▴◂УЎ⌘⌥⇧⌃⏵⏴▶▼≡☰ãv=¥]+$"
+            trimmed = trimmed.replacingOccurrences(
+                of: trailingIconPattern,
+                with: "",
+                options: .regularExpression
+            )
+
+            // Clean up multiple spaces
+            trimmed = trimmed.replacingOccurrences(
+                of: "\\s+",
+                with: " ",
+                options: .regularExpression
+            )
+
+            // Final trim
+            trimmed = trimmed.trimmingCharacters(in: .whitespaces)
+
+            // Skip if now empty
+            if trimmed.isEmpty {
+                return nil
+            }
+
+            // Keep lines with reasonable content
+            if trimmed.count < 2 {
+                // Very short lines - check if they're just symbols
+                if trimmed.rangeOfCharacter(from: CharacterSet.alphanumerics) == nil {
+                    return nil // Just symbols, skip it
+                }
             }
 
             // Remove lines with repeated single characters (e.g., "eee", "|||")
             let uniqueChars = Set(trimmed)
-            return uniqueChars.count > 1
+            if uniqueChars.count <= 1 {
+                return nil
+            }
+
+            return trimmed
         }
+
         return cleaned.joined(separator: "\n")
     }
 

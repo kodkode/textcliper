@@ -21,6 +21,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotkeyRegistered = false
     private var autoEditEnabled = false
     private var shareActionsEnabled = false // Disable share actions by default
+    private var additiveClipboardEnabled = false // Additive clipboard mode
     private var currentKeySequence: KeySequence = KeySequence(legacyKeyCode: UInt32(kVK_ANSI_8), legacyModifiers: UInt32(cmdKey | shiftKey))
     private var captureMenuItem: NSMenuItem?
 
@@ -127,6 +128,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         shareActionsItem.target = self
         shareActionsItem.state = shareActionsEnabled ? .on : .off
         menu?.addItem(shareActionsItem)
+
+        let additiveClipboardItem = NSMenuItem(
+            title: "Additive Clipboard",
+            action: #selector(toggleAdditiveClipboard),
+            keyEquivalent: ""
+        )
+        additiveClipboardItem.target = self
+        additiveClipboardItem.state = additiveClipboardEnabled ? .on : .off
+        menu?.addItem(additiveClipboardItem)
 
         menu?.addItem(NSMenuItem.separator())
 
@@ -332,6 +342,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func toggleShareActions(_ sender: NSMenuItem) {
         shareActionsEnabled.toggle()
         sender.state = shareActionsEnabled ? .on : .off
+    }
+
+    @objc private func toggleAdditiveClipboard(_ sender: NSMenuItem) {
+        additiveClipboardEnabled.toggle()
+        sender.state = additiveClipboardEnabled ? .on : .off
+
+        let status = additiveClipboardEnabled ? "enabled" : "disabled"
+        print("📋 Additive Clipboard \(status)")
+
+        // Clear clipboard when toggling OFF
+        if !additiveClipboardEnabled {
+            NSPasteboard.general.clearContents()
+            print("🗑️ Clipboard cleared")
+        }
+
+        // Show a brief notification
+        showNotification(
+            title: "Additive Clipboard \(additiveClipboardEnabled ? "Enabled" : "Disabled")",
+            message: additiveClipboardEnabled
+                ? "New captures will be appended to clipboard"
+                : "Clipboard cleared - new captures will replace content"
+        )
     }
 
     @objc private func toggleAIEnhanced(_ sender: NSMenuItem) {
@@ -578,8 +610,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let processedText = TextProcessingService.shared.autoProcessCapture(text)
         capturedText = processedText
 
-        // Copy to clipboard
-        let copyResult = ClipboardManager.shared.copyToClipboard(processedText)
+        // Copy to clipboard with additive mode if enabled
+        let copyResult = ClipboardManager.shared.copyToClipboard(processedText, additive: additiveClipboardEnabled)
 
         switch copyResult {
         case .success:
@@ -611,6 +643,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     wordCount: wordCount,
                     fullText: text,
                     showActions: shareActionsEnabled,
+                    isAdditive: additiveClipboardEnabled,
                     duration: 2.5
                 )
             }

@@ -13,19 +13,21 @@ struct HUDView: View {
     let wordCount: Int
     let fullText: String
     let showActions: Bool
+    let isAdditive: Bool
     let onShare: ((ShareDestination) -> Void)?
 
-    init(message: String, characterCount: Int, wordCount: Int, fullText: String = "", showActions: Bool = false, onShare: ((ShareDestination) -> Void)? = nil) {
+    init(message: String, characterCount: Int, wordCount: Int, fullText: String = "", showActions: Bool = false, isAdditive: Bool = false, onShare: ((ShareDestination) -> Void)? = nil) {
         self.message = message
         self.characterCount = characterCount
         self.wordCount = wordCount
         self.fullText = fullText
         self.showActions = showActions
+        self.isAdditive = isAdditive
         self.onShare = onShare
     }
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             // Success icon with gradient background
             ZStack {
                 Circle()
@@ -49,58 +51,9 @@ struct HUDView: View {
                     )
             }
 
-            VStack(spacing: 6) {
-                Text("Copied to Clipboard")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(.primary)
-
-                Text(message)
-                    .font(.system(size: 14))
-                    .multilineTextAlignment(.center)
-                    .lineLimit(4)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 4)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            // Word count badge
-            HStack(spacing: 6) {
-                Image(systemName: "text.word.spacing")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.blue)
-
-                Text("\(wordCount) \(wordCount == 1 ? "word" : "words")")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(.primary)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(
-                Capsule()
-                    .fill(Color.blue.opacity(0.1))
-            )
-
-            // Action buttons (Option C)
-            if showActions {
-                HStack(spacing: 10) {
-                    ShareActionButton(icon: "note.text", label: "Note", color: .orange) {
-                        onShare?(.notes)
-                    }
-
-                    ShareActionButton(icon: "envelope", label: "Mail", color: .blue) {
-                        onShare?(.mail)
-                    }
-
-                    ShareActionButton(icon: "message", label: "Msg", color: .green) {
-                        onShare?(.messages)
-                    }
-
-                    ShareActionButton(icon: "ellipsis", label: "More", color: .gray) {
-                        onShare?(.saveFile)
-                    }
-                }
-                .padding(.top, 4)
-            }
+            Text("Copied to Clipboard")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(.primary)
         }
         .padding(.horizontal, 28)
         .padding(.vertical, 24)

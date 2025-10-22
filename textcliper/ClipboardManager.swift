@@ -18,10 +18,13 @@ class ClipboardManager {
     private init() {}
 
     /// Copies text to the system clipboard
-    /// - Parameter text: The text to copy
+    /// - Parameters:
+    ///   - text: The text to copy
+    ///   - additive: If true, appends to existing clipboard content. If false, replaces it.
+    ///   - separator: The separator to use when appending (default: double newline)
     /// - Returns: Result indicating success or failure
     @discardableResult
-    func copyToClipboard(_ text: String) -> Result<Void, ClipboardError> {
+    func copyToClipboard(_ text: String, additive: Bool = false, separator: String = "\n\n") -> Result<Void, ClipboardError> {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !trimmed.isEmpty else {
@@ -29,9 +32,18 @@ class ClipboardManager {
         }
 
         let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
 
-        let success = pasteboard.setString(trimmed, forType: .string)
+        let finalText: String
+        if additive, let existingText = pasteboard.string(forType: .string), !existingText.isEmpty {
+            // Append to existing clipboard content
+            finalText = existingText + separator + trimmed
+        } else {
+            // Replace clipboard content
+            finalText = trimmed
+        }
+
+        pasteboard.clearContents()
+        let success = pasteboard.setString(finalText, forType: .string)
 
         return success ? .success(()) : .failure(.copyFailed)
     }
