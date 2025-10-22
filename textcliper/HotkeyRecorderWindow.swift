@@ -21,7 +21,7 @@ struct HotkeyRecorderWindow: View {
     @Environment(\.dismiss) var dismiss
 
     private let maxPresses = 5
-    private let finalizationDelay: TimeInterval = 1.0 // 1 second after last keypress
+    private let finalizationDelay: TimeInterval = 2.0 // 2 seconds after last keypress (gives more time for multi-key sequences)
 
     var body: some View {
         VStack(spacing: 20) {
@@ -53,7 +53,7 @@ struct HotkeyRecorderWindow: View {
             if recording {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("• Press up to \(maxPresses) keys in sequence")
-                    Text("• Sequence will auto-save 1 second after last keypress")
+                    Text("• Sequence will auto-save 2 seconds after last keypress")
                     Text("• Or click 'Accept' to save immediately")
                 }
                 .font(.caption)
