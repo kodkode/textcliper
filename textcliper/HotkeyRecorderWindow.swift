@@ -21,7 +21,7 @@ struct HotkeyRecorderWindow: View {
     @Environment(\.dismiss) var dismiss
 
     private let maxPresses = 5
-    private let finalizationDelay: TimeInterval = 2.0 // 2 seconds after last keypress (gives more time for multi-key sequences)
+    private let finalizationDelay: TimeInterval = 2.0
 
     var body: some View {
         VStack(spacing: 20) {
@@ -53,8 +53,7 @@ struct HotkeyRecorderWindow: View {
             if recording {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("• Press up to \(maxPresses) keys in sequence")
-                    Text("• Sequence will auto-save 2 seconds after last keypress")
-                    Text("• Or click 'Accept' to save immediately")
+                    Text("• Recording will stop 2 seconds after last keypress")
                 }
                 .font(.caption)
                 .foregroundColor(.secondary)
@@ -63,17 +62,11 @@ struct HotkeyRecorderWindow: View {
 
             // Buttons
             HStack(spacing: 12) {
-                Button(recording ? "Stop Recording" : "Record Hotkey") {
-                    toggleRecording()
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(recording && recordedPresses.isEmpty)
-
-                if recording && !recordedPresses.isEmpty {
-                    Button("Accept Sequence") {
-                        acceptSequence()
+                if !recording {
+                    Button("Record Hotkey") {
+                        startRecording()
                     }
-                    .keyboardShortcut(.return, modifiers: .command)
+                    .keyboardShortcut(.defaultAction)
                 }
 
                 if recording {
@@ -88,11 +81,11 @@ struct HotkeyRecorderWindow: View {
                 }
                 .keyboardShortcut(.cancelAction)
 
-                if !recording {
+                if !recording && !recordedPresses.isEmpty {
                     Button("Save") {
                         saveSequence()
                     }
-                    .disabled(recordedPresses.isEmpty)
+                    .keyboardShortcut(.return)
                 }
             }
         }
@@ -100,14 +93,6 @@ struct HotkeyRecorderWindow: View {
         .frame(minWidth: 500, minHeight: 280)
         .onDisappear {
             stopRecording()
-        }
-    }
-
-    private func toggleRecording() {
-        if recording {
-            stopRecording()
-        } else {
-            startRecording()
         }
     }
 
@@ -144,11 +129,6 @@ struct HotkeyRecorderWindow: View {
         finalizationTimer = nil
     }
 
-    private func acceptSequence() {
-        stopRecording()
-        updateDisplay()
-    }
-
     private func saveSequence() {
         if recordedPresses.isEmpty {
             return
@@ -165,45 +145,93 @@ struct HotkeyRecorderWindow: View {
         }
 
         let modifiers = event.modifierFlags.carbonModifiers()
-        var keyPress: KeyPress?
 
         if event.type == .keyDown {
-            // Regular key pressed - this is what we want to record
-            // It will include any modifiers that were held down
-            let keyCode = UInt32(event.keyCode)
-            keyPress = KeyPress(keyCode: keyCode, modifiers: modifiers)
+            // Regular key pressed - this might complete a combo
+            // Check if we have recent modifier-only presses that should be merged
+            mergeModifiersIntoCombo(regularKeyCode: UInt32(event.keyCode), finalModifiers: modifiers)
+
+            // Record the key press with current modifiers
+            let keyPress = KeyPress(keyCode: UInt32(event.keyCode), modifiers: modifiers)
+            recordedPresses.append(keyPress)
+            print("🔵 Recorded keyDown: keyCode=\(event.keyCode), modifiers=\(modifiers)")
+
+            updateDisplay()
+            scheduleFinalization()
+
+            // Auto-stop if max presses reached
+            if recordedPresses.count >= maxPresses {
+                stopRecording()
+            }
+
         } else if event.type == .flagsChanged {
-            // Modifier key pressed/released - IGNORE THIS
-            // We don't want to record modifier keys separately
-            // They will be recorded as part of the next regular keyDown event
-            return
+            // Modifier key pressed or released
+            if isModifierKeyCode(UInt32(event.keyCode)) {
+                // Check if this is a press (modifiers increased) or release (modifiers decreased)
+                let previousModifiers = recordedPresses.last?.modifiers ?? 0
+
+                if modifiers > previousModifiers {
+                    // Modifier key was PRESSED - record it temporarily
+                    // (might get merged later if part of a combo)
+                    let keyPress = KeyPress(keyCode: UInt32(event.keyCode), modifiers: modifiers)
+                    recordedPresses.append(keyPress)
+                    print("🟡 Recorded modifier press: keyCode=\(event.keyCode), modifiers=\(modifiers)")
+
+                    updateDisplay()
+                    scheduleFinalization()
+
+                    // Auto-stop if max presses reached
+                    if recordedPresses.count >= maxPresses {
+                        stopRecording()
+                    }
+                }
+                // If modifiers decreased, it's a release - ignore it
+            }
+        }
+    }
+
+    private func mergeModifiersIntoCombo(regularKeyCode: UInt32, finalModifiers: UInt32) {
+        // Remove any trailing modifier-only presses that were part of this combo
+        // A modifier press is "part of the combo" if it's a modifier key being recorded
+        // and the final modifiers include that modifier
+
+        var indicesToRemove: [Int] = []
+
+        // Look backwards through recent presses
+        for i in stride(from: recordedPresses.count - 1, through: 0, by: -1) {
+            let press = recordedPresses[i]
+
+            // Is this a modifier key?
+            if isModifierKeyCode(press.keyCode) {
+                // Mark for removal - this was part of the combo
+                indicesToRemove.append(i)
+                print("🔀 Merging modifier: keyCode=\(press.keyCode)")
+            } else {
+                // Hit a non-modifier key, stop looking
+                break
+            }
         }
 
-        guard let press = keyPress else {
-            return
+        // Remove the modifier-only presses (they're now represented in finalModifiers)
+        for index in indicesToRemove {
+            recordedPresses.remove(at: index)
         }
 
-        // Add to recorded sequence
-        recordedPresses.append(press)
-        updateDisplay()
+        if !indicesToRemove.isEmpty {
+            print("✅ Merged \(indicesToRemove.count) modifiers into combo")
+        }
+    }
 
-        // Cancel previous timer
+    private func scheduleFinalization() {
+        // Cancel any existing timer
         finalizationTimer?.cancel()
 
-        // Auto-finalize after delay if we have at least one keypress
-        if recordedPresses.count > 0 {
-            let timer = DispatchWorkItem {
-                // Using implicit self capture is fine in SwiftUI View structs
-                self.acceptSequence()
-            }
-            finalizationTimer = timer
-            DispatchQueue.main.asyncAfter(deadline: .now() + finalizationDelay, execute: timer)
+        // Schedule auto-stop after delay
+        let timer = DispatchWorkItem {
+            self.stopRecording()
         }
-
-        // Auto-accept if max presses reached
-        if recordedPresses.count >= maxPresses {
-            acceptSequence()
-        }
+        finalizationTimer = timer
+        DispatchQueue.main.asyncAfter(deadline: .now() + finalizationDelay, execute: timer)
     }
 
     private func updateDisplay() {
