@@ -17,6 +17,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private weak var editWindow: NSWindow?
     private weak var hotkeyWindow: NSWindow?
     private weak var historyWindow: NSWindow?
+    private weak var settingsWindow: NSWindow?
     private var capturedText: String = ""
     private var hotkeyRegistered = false
     private var additiveClipboardEnabled = false // Additive clipboard mode
@@ -49,6 +50,35 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             self,
             selector: #selector(appDidActivate),
             name: NSWorkspace.didActivateApplicationNotification,
+            object: nil
+        )
+
+        // Listen for notifications from SettingsView
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleShowHotkeyRecorder),
+            name: NSNotification.Name("ShowHotkeyRecorder"),
+            object: nil
+        )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleShowAPIKeyConfig),
+            name: NSNotification.Name("ShowAPIKeyConfig"),
+            object: nil
+        )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleUpdateMenuBarVisibility),
+            name: NSNotification.Name("UpdateMenuBarVisibility"),
+            object: nil
+        )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleUpdateAdditiveClipboard),
+            name: NSNotification.Name("UpdateAdditiveClipboard"),
             object: nil
         )
     }
@@ -236,13 +266,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu?.addItem(NSMenuItem.separator())
 
-        let configureHotkeyItem = NSMenuItem(
-            title: "Configure Hotkey...",
-            action: #selector(configureHotkey),
-            keyEquivalent: ""
+        let settingsItem = NSMenuItem(
+            title: "Settings...",
+            action: #selector(openSettings),
+            keyEquivalent: ","
         )
-        configureHotkeyItem.target = self
-        menu?.addItem(configureHotkeyItem)
+        settingsItem.target = self
+        menu?.addItem(settingsItem)
 
         menu?.addItem(NSMenuItem.separator())
 
@@ -476,6 +506,29 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         historyWindow = window
     }
 
+    @objc private func openSettings() {
+        // Close existing window if open
+        settingsWindow?.close()
+
+        let contentView = SettingsView()
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 600, height: 550),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentView = NSHostingView(rootView: contentView)
+        window.title = "Settings"
+        window.center()
+        window.level = .floating
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        window.isReleasedWhenClosed = false
+
+        settingsWindow = window
+    }
+
     @objc private func configureHotkey() {
         // Close existing window if open
         hotkeyWindow?.close()
@@ -555,6 +608,44 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func quit() {
         NSApplication.shared.terminate(nil)
+    }
+
+    // MARK: - Notification Handlers
+
+    @objc private func handleShowHotkeyRecorder(_ notification: Notification) {
+        configureHotkey()
+    }
+
+    @objc private func handleShowAPIKeyConfig(_ notification: Notification) {
+        configureAPIKey()
+    }
+
+    @objc private func handleUpdateMenuBarVisibility(_ notification: Notification) {
+        if let showIcon = notification.object as? Bool {
+            if showIcon {
+                if statusItem == nil {
+                    statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+                    if let button = statusItem?.button {
+                        button.image = NSImage(systemSymbolName: "doc.text.viewfinder", accessibilityDescription: "Screen to Text")
+                        button.imagePosition = .imageLeading
+                    }
+                    statusItem?.menu = menu
+                }
+            } else {
+                if let item = statusItem {
+                    NSStatusBar.system.removeStatusItem(item)
+                    statusItem = nil
+                }
+            }
+        }
+    }
+
+    @objc private func handleUpdateAdditiveClipboard(_ notification: Notification) {
+        if let enabled = notification.object as? Bool {
+            additiveClipboardEnabled = enabled
+            // Update menu item state if needed
+            setupMenu()
+        }
     }
 
     // MARK: - Core Functionality
