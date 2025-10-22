@@ -19,8 +19,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private weak var historyWindow: NSWindow?
     private var capturedText: String = ""
     private var hotkeyRegistered = false
-    private var autoEditEnabled = false
-    private var shareActionsEnabled = false // Disable share actions by default
     private var additiveClipboardEnabled = false // Additive clipboard mode
     private var currentKeySequence: KeySequence = KeySequence(legacyKeyCode: UInt32(kVK_ANSI_8), legacyModifiers: UInt32(cmdKey | shiftKey))
     private var captureMenuItem: NSMenuItem?
@@ -110,24 +108,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
         barcodeItem.target = self
         menu?.addItem(barcodeItem)
-
-        let editItem = NSMenuItem(
-            title: "Auto-Open Editor",
-            action: #selector(toggleAuto),
-            keyEquivalent: ""
-        )
-        editItem.target = self
-        editItem.state = autoEditEnabled ? .on : .off
-        menu?.addItem(editItem)
-
-        let shareActionsItem = NSMenuItem(
-            title: "Show Share Actions",
-            action: #selector(toggleShareActions),
-            keyEquivalent: ""
-        )
-        shareActionsItem.target = self
-        shareActionsItem.state = shareActionsEnabled ? .on : .off
-        menu?.addItem(shareActionsItem)
 
         let additiveClipboardItem = NSMenuItem(
             title: "Additive Clipboard",
@@ -332,16 +312,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         openEditWindow()
-    }
-
-    @objc private func toggleAuto(_ sender: NSMenuItem) {
-        autoEditEnabled.toggle()
-        sender.state = autoEditEnabled ? .on : .off
-    }
-
-    @objc private func toggleShareActions(_ sender: NSMenuItem) {
-        shareActionsEnabled.toggle()
-        sender.state = shareActionsEnabled ? .on : .off
     }
 
     @objc private func toggleAdditiveClipboard(_ sender: NSMenuItem) {
@@ -631,22 +601,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
 
-            // If auto-edit is enabled, open editor directly (skip HUD)
-            if autoEditEnabled {
-                HUDManager.shared.dismissHUD() // Dismiss loading HUD if present
-                openEditWindow()
-            } else {
-                // Show custom HUD with share actions
-                HUDManager.shared.showHUD(
-                    message: "\(preview)\(ellipsis)",
-                    characterCount: characterCount,
-                    wordCount: wordCount,
-                    fullText: text,
-                    showActions: shareActionsEnabled,
-                    isAdditive: additiveClipboardEnabled,
-                    duration: 2.5
-                )
-            }
+            // Show success HUD
+            HUDManager.shared.showHUD(
+                message: "\(preview)\(ellipsis)",
+                characterCount: characterCount,
+                wordCount: wordCount,
+                fullText: text,
+                showActions: false,
+                isAdditive: additiveClipboardEnabled,
+                duration: 2.5
+            )
         case .failure(let error):
             showAlert(
                 title: "Copy Failed",
@@ -756,7 +720,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     )
                 }
             },
-            showShareActions: shareActionsEnabled
+            showShareActions: false
         )
 
         let window = NSWindow(
