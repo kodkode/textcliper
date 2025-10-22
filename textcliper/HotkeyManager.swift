@@ -98,21 +98,14 @@ class HotkeyManager {
         var keyPress: KeyPress?
 
         if event.type == .keyDown {
-            // Regular key pressed
+            // Regular key pressed - this includes any modifiers held down
             let keyCode = UInt32(event.keyCode)
             keyPress = KeyPress(keyCode: keyCode, modifiers: modifiers)
         } else if event.type == .flagsChanged {
-            // Modifier key pressed/released
-            // Only record when a modifier is PRESSED (not released)
-            if isModifierKeyCode(UInt32(event.keyCode)) {
-                let currentModifiers = modifiers
-                let previousModifiers = keypressBuffer.last?.press.modifiers ?? 0
-
-                // Check if this is a press (modifiers increased)
-                if currentModifiers > previousModifiers {
-                    keyPress = KeyPress(keyCode: UInt32(event.keyCode), modifiers: previousModifiers)
-                }
-            }
+            // Modifier key pressed/released - IGNORE
+            // Modifiers are captured automatically with keyDown events
+            // This prevents recording modifier keys as separate keypresses
+            return
         }
 
         guard let press = keyPress else {
