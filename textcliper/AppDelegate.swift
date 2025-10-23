@@ -455,15 +455,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         alert.informativeText = "Configure your AI provider API keys.\nKeys are stored securely in macOS Keychain."
         alert.alertStyle = .informational
 
-        // Create container view for all text fields
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 120))
+        // Create container view for all text fields (increased height for 3 fields)
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 340, height: 180))
 
         // OpenAI label and field
         let openAILabel = NSTextField(labelWithString: "OpenAI API Key:")
-        openAILabel.frame = NSRect(x: 0, y: 96, width: 320, height: 20)
+        openAILabel.frame = NSRect(x: 0, y: 152, width: 340, height: 20)
         container.addSubview(openAILabel)
 
-        let openAIField = NSTextField(frame: NSRect(x: 0, y: 76, width: 320, height: 24))
+        let openAIField = NSTextField(frame: NSRect(x: 0, y: 128, width: 340, height: 24))
         openAIField.placeholderString = "sk-proj-..."
         openAIField.stringValue = KeychainService.shared.getOpenAIKey() ?? ""
         openAIField.drawsBackground = true
@@ -474,10 +474,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Gemini label and field
         let geminiLabel = NSTextField(labelWithString: "Gemini API Key:")
-        geminiLabel.frame = NSRect(x: 0, y: 52, width: 320, height: 20)
+        geminiLabel.frame = NSRect(x: 0, y: 96, width: 340, height: 20)
         container.addSubview(geminiLabel)
 
-        let geminiField = NSTextField(frame: NSRect(x: 0, y: 32, width: 320, height: 24))
+        let geminiField = NSTextField(frame: NSRect(x: 0, y: 72, width: 340, height: 24))
         geminiField.placeholderString = "AIza..."
         geminiField.stringValue = KeychainService.shared.getGeminiKey() ?? ""
         geminiField.drawsBackground = true
@@ -488,10 +488,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // OCR.space label and field
         let ocrSpaceLabel = NSTextField(labelWithString: "OCR.space API Key:")
-        ocrSpaceLabel.frame = NSRect(x: 0, y: 8, width: 320, height: 20)
+        ocrSpaceLabel.frame = NSRect(x: 0, y: 40, width: 340, height: 20)
         container.addSubview(ocrSpaceLabel)
 
-        let ocrSpaceField = NSTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
+        let ocrSpaceField = NSTextField(frame: NSRect(x: 0, y: 16, width: 340, height: 24))
         ocrSpaceField.placeholderString = "K8..."
         ocrSpaceField.stringValue = KeychainService.shared.getOCRSpaceKey() ?? ""
         ocrSpaceField.drawsBackground = true
