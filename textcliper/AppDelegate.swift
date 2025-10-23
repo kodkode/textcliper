@@ -253,6 +253,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             aiProviderMenu.addItem(geminiModelItem)
         }
 
+        let useOCRSpaceItem = NSMenuItem(
+            title: "OCR.space",
+            action: #selector(selectOCRSpace),
+            keyEquivalent: ""
+        )
+        useOCRSpaceItem.target = self
+        useOCRSpaceItem.state = (currentProvider == "ocrspace") ? .on : .off
+        aiProviderMenu.addItem(useOCRSpaceItem)
+
         aiProviderItem.submenu = aiProviderMenu
         menu?.addItem(aiProviderItem)
 
@@ -373,14 +382,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Check if API key is configured when enabling
         if newValue {
             let provider = UserDefaults.standard.string(forKey: "aiProvider") ?? "openai"
-            let hasKey = (provider == "openai")
-                ? KeychainService.shared.getOpenAIKey() != nil
-                : KeychainService.shared.getGeminiKey() != nil
+            let hasKey: Bool
+            let providerName: String
+
+            if provider == "openai" {
+                hasKey = KeychainService.shared.getOpenAIKey() != nil
+                providerName = "OpenAI"
+            } else if provider == "gemini" {
+                hasKey = KeychainService.shared.getGeminiKey() != nil
+                providerName = "Gemini"
+            } else if provider == "ocrspace" {
+                hasKey = KeychainService.shared.getOCRSpaceKey() != nil
+                providerName = "OCR.space"
+            } else {
+                hasKey = false
+                providerName = "Unknown"
+            }
 
             if !hasKey {
                 showAlert(
                     title: "API Key Required",
-                    message: "Please configure your \(provider == "openai" ? "OpenAI" : "Gemini") API key first using 'Configure API Keys...' menu option."
+                    message: "Please configure your \(providerName) API key first using 'Configure API Keys...' menu option."
                 )
                 return
             }
@@ -405,6 +427,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupMenu() // Refresh menu to update checkmarks
         let model = UserDefaults.standard.string(forKey: "geminiModel") ?? "gemini-2.5-flash"
         print("🔄 Switched to Google Gemini (\(model))")
+    }
+
+    @objc private func selectOCRSpace() {
+        UserDefaults.standard.set("ocrspace", forKey: "aiProvider")
+        setupMenu() // Refresh menu to update checkmarks
+        print("🔄 Switched to OCR.space")
     }
 
     @objc private func selectGeminiModel(_ sender: NSMenuItem) {
@@ -438,6 +466,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let openAIField = NSTextField(frame: NSRect(x: 0, y: 76, width: 320, height: 24))
         openAIField.placeholderString = "sk-proj-..."
         openAIField.stringValue = KeychainService.shared.getOpenAIKey() ?? ""
+        openAIField.drawsBackground = true
+        openAIField.backgroundColor = NSColor.textBackgroundColor
+        openAIField.isBordered = true
+        openAIField.bezelStyle = .squareBezel
         container.addSubview(openAIField)
 
         // Gemini label and field
@@ -448,6 +480,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let geminiField = NSTextField(frame: NSRect(x: 0, y: 32, width: 320, height: 24))
         geminiField.placeholderString = "AIza..."
         geminiField.stringValue = KeychainService.shared.getGeminiKey() ?? ""
+        geminiField.drawsBackground = true
+        geminiField.backgroundColor = NSColor.textBackgroundColor
+        geminiField.isBordered = true
+        geminiField.bezelStyle = .squareBezel
         container.addSubview(geminiField)
 
         // OCR.space label and field
@@ -458,6 +494,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let ocrSpaceField = NSTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
         ocrSpaceField.placeholderString = "K8..."
         ocrSpaceField.stringValue = KeychainService.shared.getOCRSpaceKey() ?? ""
+        ocrSpaceField.drawsBackground = true
+        ocrSpaceField.backgroundColor = NSColor.textBackgroundColor
+        ocrSpaceField.isBordered = true
+        ocrSpaceField.bezelStyle = .squareBezel
         container.addSubview(ocrSpaceField)
 
         alert.accessoryView = container
