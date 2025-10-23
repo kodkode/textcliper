@@ -91,8 +91,12 @@ class OCRService {
         let hasAPIKey: Bool
         if provider == "openai" {
             hasAPIKey = KeychainService.shared.getOpenAIKey() != nil
-        } else {
+        } else if provider == "gemini" {
             hasAPIKey = KeychainService.shared.getGeminiKey() != nil
+        } else if provider == "ocrspace" {
+            hasAPIKey = KeychainService.shared.getOCRSpaceKey() != nil
+        } else {
+            hasAPIKey = false
         }
 
         if aiEnabled && hasAPIKey {
@@ -106,10 +110,13 @@ class OCRService {
                 let model = UserDefaults.standard.string(forKey: "openaiModel") ?? "gpt-4o"
                 print("🤖 AI-Enhanced OCR enabled - Using OpenAI (\(model))")
                 self.performOpenAIOCR(on: image, completion: completion)
-            } else {
+            } else if provider == "gemini" {
                 let model = UserDefaults.standard.string(forKey: "geminiModel") ?? "gemini-2.5-flash"
                 print("🤖 AI-Enhanced OCR enabled - Using Google Gemini (\(model))")
                 self.performGeminiOCR(on: image, completion: completion)
+            } else if provider == "ocrspace" {
+                print("🌐 AI-Enhanced OCR enabled - Using OCR.space")
+                self.performOCRSpaceOCR(on: image, completion: completion)
             }
         } else {
             // Use standard Vision OCR
@@ -152,6 +159,28 @@ class OCRService {
                 }
             case .failure(let error):
                 print("⚠️ Gemini OCR failed: \(error), falling back to standard OCR")
+                // Fallback to standard Vision OCR if API fails
+                if let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+                    self.performStandardOCR(on: cgImage, completion: completion)
+                } else {
+                    completion(.failure(.ocrFailed))
+                }
+            }
+        }
+    }
+
+    /// Perform OCR using OCR.space API
+    private func performOCRSpaceOCR(on image: NSImage, completion: @escaping (Result<String, OCRError>) -> Void) {
+        OCRSpaceService.shared.extractTextFromImage(image) { result in
+            switch result {
+            case .success(let text):
+                if text.isEmpty {
+                    completion(.failure(.noTextDetected))
+                } else {
+                    completion(.success(text))
+                }
+            case .failure(let error):
+                print("⚠️ OCR.space failed: \(error), falling back to standard OCR")
                 // Fallback to standard Vision OCR if API fails
                 if let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
                     self.performStandardOCR(on: cgImage, completion: completion)

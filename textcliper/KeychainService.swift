@@ -14,6 +14,7 @@ class KeychainService {
     private let service = "com.textcliper.apikeys"
     private let openAIKeyAccount = "openai-api-key"
     private let geminiKeyAccount = "gemini-api-key"
+    private let ocrSpaceKeyAccount = "ocrspace-api-key"
 
     private init() {}
 
@@ -43,6 +44,20 @@ class KeychainService {
 
     func deleteGeminiKey() -> Bool {
         return delete(account: geminiKeyAccount)
+    }
+
+    // MARK: - OCR.space API Key
+
+    func saveOCRSpaceKey(_ key: String) -> Bool {
+        return save(key: key, account: ocrSpaceKeyAccount)
+    }
+
+    func getOCRSpaceKey() -> String? {
+        return retrieve(account: ocrSpaceKeyAccount)
+    }
+
+    func deleteOCRSpaceKey() -> Bool {
+        return delete(account: ocrSpaceKeyAccount)
     }
 
     // MARK: - Generic Keychain Operations

@@ -80,29 +80,32 @@ struct SettingsView: View {
                             .frame(width: 120, alignment: .leading)
                         Picker("", selection: $aiProvider) {
                             Text("OpenAI").tag("openai")
-                            Text("Google Gemini").tag("gemini")
+                            Text("Gemini").tag("gemini")
+                            Text("OCR.space").tag("ocrspace")
                         }
                         .pickerStyle(.segmented)
                         .disabled(!aiEnhancedOCR)
                     }
 
-                    HStack {
-                        Text("AI Model")
-                            .frame(width: 120, alignment: .leading)
-                        Picker("", selection: aiProvider == "openai" ? $openaiModel : $geminiModel) {
-                            if aiProvider == "openai" {
-                                Text("GPT-4o (Recommended)").tag("gpt-4o")
-                                Text("GPT-4o Mini (Faster)").tag("gpt-4o-mini")
-                                Text("GPT-4 Turbo").tag("gpt-4-turbo")
-                                Text("GPT-4").tag("gpt-4")
-                                Text("o1 (Reasoning)").tag("o1")
-                                Text("o1 Mini (Reasoning)").tag("o1-mini")
-                            } else {
-                                Text("Gemini 2.5 Flash (Recommended)").tag("gemini-2.5-flash")
-                                Text("Gemini 2.0 Flash Exp").tag("gemini-2.0-flash-exp")
+                    if aiProvider != "ocrspace" {
+                        HStack {
+                            Text("AI Model")
+                                .frame(width: 120, alignment: .leading)
+                            Picker("", selection: aiProvider == "openai" ? $openaiModel : $geminiModel) {
+                                if aiProvider == "openai" {
+                                    Text("GPT-4o (Recommended)").tag("gpt-4o")
+                                    Text("GPT-4o Mini (Faster)").tag("gpt-4o-mini")
+                                    Text("GPT-4 Turbo").tag("gpt-4-turbo")
+                                    Text("GPT-4").tag("gpt-4")
+                                    Text("o1 (Reasoning)").tag("o1")
+                                    Text("o1 Mini (Reasoning)").tag("o1-mini")
+                                } else {
+                                    Text("Gemini 2.5 Flash (Recommended)").tag("gemini-2.5-flash")
+                                    Text("Gemini 2.0 Flash Exp").tag("gemini-2.0-flash-exp")
+                                }
                             }
+                            .disabled(!aiEnhancedOCR)
                         }
-                        .disabled(!aiEnhancedOCR)
                     }
 
                     Button("Configure API Keys...") {

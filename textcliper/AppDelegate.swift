@@ -427,28 +427,38 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         alert.informativeText = "Configure your AI provider API keys.\nKeys are stored securely in macOS Keychain."
         alert.alertStyle = .informational
 
-        // Create container view for both text fields
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 80))
+        // Create container view for all text fields
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 120))
 
         // OpenAI label and field
         let openAILabel = NSTextField(labelWithString: "OpenAI API Key:")
-        openAILabel.frame = NSRect(x: 0, y: 56, width: 320, height: 20)
+        openAILabel.frame = NSRect(x: 0, y: 96, width: 320, height: 20)
         container.addSubview(openAILabel)
 
-        let openAIField = NSTextField(frame: NSRect(x: 0, y: 36, width: 320, height: 24))
+        let openAIField = NSTextField(frame: NSRect(x: 0, y: 76, width: 320, height: 24))
         openAIField.placeholderString = "sk-proj-..."
         openAIField.stringValue = KeychainService.shared.getOpenAIKey() ?? ""
         container.addSubview(openAIField)
 
         // Gemini label and field
         let geminiLabel = NSTextField(labelWithString: "Gemini API Key:")
-        geminiLabel.frame = NSRect(x: 0, y: 16, width: 320, height: 20)
+        geminiLabel.frame = NSRect(x: 0, y: 52, width: 320, height: 20)
         container.addSubview(geminiLabel)
 
-        let geminiField = NSTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
+        let geminiField = NSTextField(frame: NSRect(x: 0, y: 32, width: 320, height: 24))
         geminiField.placeholderString = "AIza..."
         geminiField.stringValue = KeychainService.shared.getGeminiKey() ?? ""
         container.addSubview(geminiField)
+
+        // OCR.space label and field
+        let ocrSpaceLabel = NSTextField(labelWithString: "OCR.space API Key:")
+        ocrSpaceLabel.frame = NSRect(x: 0, y: 8, width: 320, height: 20)
+        container.addSubview(ocrSpaceLabel)
+
+        let ocrSpaceField = NSTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
+        ocrSpaceField.placeholderString = "K8..."
+        ocrSpaceField.stringValue = KeychainService.shared.getOCRSpaceKey() ?? ""
+        container.addSubview(ocrSpaceField)
 
         alert.accessoryView = container
         alert.addButton(withTitle: "Save")
@@ -475,6 +485,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     print("✅ Gemini API key saved to Keychain")
                 } else {
                     showAlert(title: "Error", message: "Failed to save Gemini API key.")
+                    return
+                }
+            }
+
+            // Save OCR.space key
+            let ocrSpaceKey = ocrSpaceField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !ocrSpaceKey.isEmpty {
+                if KeychainService.shared.saveOCRSpaceKey(ocrSpaceKey) {
+                    print("✅ OCR.space API key saved to Keychain")
+                } else {
+                    showAlert(title: "Error", message: "Failed to save OCR.space API key.")
                     return
                 }
             }
