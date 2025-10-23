@@ -214,7 +214,8 @@ class OCRService {
                 request.revision = VNRecognizeTextRequestRevision1
             }
 
-            // Support multiple Latin-script and common languages
+            // Support all languages actually supported by Vision framework
+            // Note: Vision only supports these 18 languages (verified via supportedRecognitionLanguages API)
             // Excluding: Chinese (zh-Hans, zh-Hant), Japanese (ja-JP), Korean (ko-KR)
             // These can be confused with each other and cause misrecognition
             request.recognitionLanguages = [
@@ -223,25 +224,15 @@ class OCRService {
                 "it-IT",      // Italian
                 "de-DE",      // German
                 "es-ES",      // Spanish
-                "pt-BR",      // Portuguese
-                "nl-NL",      // Dutch
-                "pl-PL",      // Polish
+                "pt-BR",      // Portuguese (Brazilian)
                 "ru-RU",      // Russian
                 "uk-UA",      // Ukrainian
-                "ar",         // Arabic
-                "he-IL",      // Hebrew
-                "tr-TR",      // Turkish
-                "sv-SE",      // Swedish
-                "da-DK",      // Danish
-                "fi-FI",      // Finnish
-                "no-NO",      // Norwegian
-                "cs-CZ",      // Czech
-                "sk-SK",      // Slovak
-                "ro-RO",      // Romanian
-                "hu-HU",      // Hungarian
-                "el-GR",      // Greek
+                "ar-SA",      // Arabic (Saudi)
+                "ars-SA",     // Arabic (Najdi)
                 "th-TH",      // Thai
                 "vi-VT"       // Vietnamese
+                // NOT supported by Vision: Hebrew, Dutch, Polish, Turkish, Swedish, Danish,
+                // Finnish, Norwegian, Czech, Slovak, Romanian, Hungarian, Greek
             ]
             request.usesLanguageCorrection = true
             request.recognitionLevel = .accurate
