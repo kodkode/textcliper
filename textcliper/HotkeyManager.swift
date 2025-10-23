@@ -21,6 +21,7 @@ class HotkeyManager {
     // Buffer to track recent keypresses
     private var keypressBuffer: [(press: KeyPress, time: Date)] = []
     private let maxBufferSize = 10
+    private var lastSeenModifiers: UInt32 = 0  // Track actual modifier state
 
     private init() {}
 
@@ -42,6 +43,7 @@ class HotkeyManager {
         self.callback = callback
         self.registeredSequence = sequence
         self.keypressBuffer = []
+        self.lastSeenModifiers = 0
 
         print("🔧 Registering hotkey sequence: \(sequence.displayString())")
 
@@ -87,6 +89,7 @@ class HotkeyManager {
         callback = nil
         registeredSequence = nil
         keypressBuffer = []
+        lastSeenModifiers = 0
 
         print("🔧 Hotkey unregistered")
     }
@@ -94,26 +97,86 @@ class HotkeyManager {
     private func handleKeyEvent(_ event: NSEvent) {
         let now = Date()
         let modifiers = event.modifierFlags.carbonModifiers()
-
-        var keyPress: KeyPress?
+        var didAddToBuffer = false
 
         if event.type == .keyDown {
-            // Regular key pressed - this includes any modifiers held down
-            let keyCode = UInt32(event.keyCode)
-            keyPress = KeyPress(keyCode: keyCode, modifiers: modifiers)
+            // Regular key pressed - merge any trailing modifiers into combo
+            mergeModifiersIntoCombo(finalModifiers: modifiers, time: now)
+
+            // Record the key press with current modifiers
+            let keyPress = KeyPress(keyCode: UInt32(event.keyCode), modifiers: modifiers)
+            keypressBuffer.append((press: keyPress, time: now))
+            print("🔵 KeyDown: keyCode=\(event.keyCode), modifiers=\(modifiers)")
+            didAddToBuffer = true
+
         } else if event.type == .flagsChanged {
-            // Modifier key pressed/released - IGNORE
-            // Modifiers are captured automatically with keyDown events
-            // This prevents recording modifier keys as separate keypresses
-            return
+            // Modifier key pressed or released
+            if isModifierKeyCode(UInt32(event.keyCode)) {
+                // Only record when modifiers INCREASE (a new key is pressed)
+                // Ignore oscillations and decreases
+                if modifiers > lastSeenModifiers {
+                    // Modifier key was PRESSED - record it temporarily
+                    let keyPress = KeyPress(keyCode: UInt32(event.keyCode), modifiers: modifiers)
+                    keypressBuffer.append((press: keyPress, time: now))
+                    print("🟡 Modifier press: keyCode=\(event.keyCode), modifiers=\(lastSeenModifiers)→\(modifiers)")
+                    didAddToBuffer = true
+                } else if modifiers < lastSeenModifiers {
+                    // Modifiers decreased/released - clear any pending modifier-only presses
+                    print("🔻 Modifier released: modifiers=\(lastSeenModifiers)→\(modifiers)")
+
+                    // If buffer only contains modifiers (no regular keys), clear it
+                    let hasRegularKey = keypressBuffer.contains { !isModifierKeyCode($0.press.keyCode) }
+                    if !hasRegularKey && !keypressBuffer.isEmpty {
+                        print("🧹 Clearing modifier-only buffer")
+                        keypressBuffer.removeAll()
+                    }
+                }
+                // Always update state for modifier changes
+                lastSeenModifiers = modifiers
+            }
         }
 
-        guard let press = keyPress else {
-            return
+        // Update last seen modifiers for keyDown events
+        if event.type == .keyDown {
+            lastSeenModifiers = modifiers
         }
 
-        // Add to buffer
-        keypressBuffer.append((press: press, time: now))
+        // Only check for match if we actually added something to the buffer
+        if didAddToBuffer {
+            checkForMatch(at: now)
+        }
+    }
+
+    private func mergeModifiersIntoCombo(finalModifiers: UInt32, time: Date) {
+        // Remove trailing modifier-only presses that are part of this combo
+        var indicesToRemove: [Int] = []
+
+        // Look backwards through buffer
+        for i in stride(from: keypressBuffer.count - 1, through: 0, by: -1) {
+            let entry = keypressBuffer[i]
+
+            // Is this a modifier key?
+            if isModifierKeyCode(entry.press.keyCode) {
+                indicesToRemove.append(i)
+                print("🔀 Merging modifier from buffer: keyCode=\(entry.press.keyCode)")
+            } else {
+                // Hit a non-modifier key, stop
+                break
+            }
+        }
+
+        // Remove the modifier-only presses
+        for index in indicesToRemove.sorted(by: >) {
+            keypressBuffer.remove(at: index)
+        }
+
+        if !indicesToRemove.isEmpty {
+            print("✅ Merged \(indicesToRemove.count) modifiers into combo")
+        }
+    }
+
+    private func checkForMatch(at now: Date) {
+        print("📝 Buffer size: \(keypressBuffer.count)")
 
         // Trim buffer to max size
         if keypressBuffer.count > maxBufferSize {
@@ -121,7 +184,6 @@ class HotkeyManager {
         }
 
         // Clean old entries ONLY for multi-key sequences
-        // For single-key combos (like Cmd+Shift+8), we don't need timing-based cleanup
         if let sequence = registeredSequence, sequence.count > 1 {
             let cutoffTime = now.addingTimeInterval(-sequence.maxTimeBetweenKeys * Double(sequence.count))
             keypressBuffer.removeAll { $0.time < cutoffTime }
@@ -129,16 +191,21 @@ class HotkeyManager {
 
         // Check if buffer matches registered sequence
         if let sequence = registeredSequence {
+            print("🎯 Checking match - Registered: \(sequence.displayString()), Buffer count: \(keypressBuffer.count)")
             if sequence.matches(buffer: keypressBuffer) {
                 print("🔥 Hotkey sequence matched!")
 
-                // Clear buffer to prevent repeated triggers
+                // Clear buffer AND reset modifier state to allow immediate re-trigger
                 keypressBuffer = []
+                lastSeenModifiers = 0
+                print("♻️ Reset state for next trigger")
 
                 // Trigger callback on main thread
                 DispatchQueue.main.async { [weak self] in
                     self?.callback?()
                 }
+            } else {
+                print("❌ No match")
             }
         }
     }
