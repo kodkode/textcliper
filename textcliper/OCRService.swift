@@ -214,7 +214,35 @@ class OCRService {
                 request.revision = VNRecognizeTextRequestRevision1
             }
 
-            request.recognitionLanguages = ["en-US"]
+            // Support multiple Latin-script and common languages
+            // Excluding: Chinese (zh-Hans, zh-Hant), Japanese (ja-JP), Korean (ko-KR)
+            // These can be confused with each other and cause misrecognition
+            request.recognitionLanguages = [
+                "en-US",      // English
+                "fr-FR",      // French
+                "it-IT",      // Italian
+                "de-DE",      // German
+                "es-ES",      // Spanish
+                "pt-BR",      // Portuguese
+                "nl-NL",      // Dutch
+                "pl-PL",      // Polish
+                "ru-RU",      // Russian
+                "uk-UA",      // Ukrainian
+                "ar",         // Arabic
+                "he-IL",      // Hebrew
+                "tr-TR",      // Turkish
+                "sv-SE",      // Swedish
+                "da-DK",      // Danish
+                "fi-FI",      // Finnish
+                "no-NO",      // Norwegian
+                "cs-CZ",      // Czech
+                "sk-SK",      // Slovak
+                "ro-RO",      // Romanian
+                "hu-HU",      // Hungarian
+                "el-GR",      // Greek
+                "th-TH",      // Thai
+                "vi-VT"       // Vietnamese
+            ]
             request.usesLanguageCorrection = true
             request.recognitionLevel = .accurate
 
