@@ -89,12 +89,11 @@ struct HistoryView: View {
             HStack {
                 Toggle("Enable iCloud Sync", isOn: $cloudSync.iCloudSyncEnabled)
                     .font(.system(size: 12))
-                    .disabled(true) // Disabled until app is properly signed
-                    .help("Requires code signing with Apple Developer account")
+                    .help("Sync OCR history across your devices via iCloud")
 
                 Spacer()
 
-                Text("iCloud sync requires code signing")
+                Text("Last sync: \(cloudSync.lastSyncText)")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }

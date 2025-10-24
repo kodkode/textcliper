@@ -8,6 +8,8 @@
 import Foundation
 import AppKit
 import Vision
+import UniformTypeIdentifiers
+import ImageIO
 
 enum OCRError: Error {
     case screenshotFailed
@@ -22,52 +24,89 @@ class OCRService {
 
     private init() {}
 
-    /// Captures a screenshot with interactive selection
+    /// Captures a screenshot with interactive selection using /usr/sbin/screencapture
+    /// Works with sandbox using temporary-exception entitlement (like TextSniper)
     /// - Parameter completion: Called with the temporary file URL or error
     func captureScreenshot(completion: @escaping (Result<URL, OCRError>) -> Void) {
+        print("📸 Starting screenshot capture with interactive selection...")
+
+        // Use /usr/sbin/screencapture with -i (interactive) flag
+        // This works in sandbox with com.apple.security.temporary-exception.mach-register.global-name entitlement
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("screenshot_\(UUID().uuidString).png")
 
-        print("📸 Starting screenshot capture...")
-        print("   Temp file: \(tempURL.path)")
-
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-        process.arguments = ["-i", tempURL.path] // -i for interactive selection
+        process.arguments = ["-i", tempURL.path]  // -i = interactive selection
 
-        // Capture stderr to see permission errors
-        let errorPipe = Pipe()
-        process.standardError = errorPipe
-
-        process.terminationHandler = { process in
-            // Read any error output
-            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-            if !errorData.isEmpty, let errorString = String(data: errorData, encoding: .utf8) {
-                print("⚠️ screencapture stderr: \(errorString)")
-            }
-
+        process.terminationHandler = { proc in
             DispatchQueue.main.async {
-                print("   Termination status: \(process.terminationStatus)")
-                print("   File exists: \(FileManager.default.fileExists(atPath: tempURL.path))")
-
-                if process.terminationStatus == 0 && FileManager.default.fileExists(atPath: tempURL.path) {
+                if proc.terminationStatus == 0 {
                     print("✅ Screenshot captured successfully")
                     completion(.success(tempURL))
                 } else {
-                    print("❌ Screenshot failed (user cancelled or permission denied)")
-                    // User cancelled or screenshot failed
+                    print("❌ screencapture failed with status \(proc.terminationStatus)")
                     completion(.failure(.screenshotFailed))
                 }
             }
         }
 
         do {
+            print("🚀 Launching screencapture with interactive mode...")
             try process.run()
         } catch {
             print("❌ Failed to launch screencapture: \(error)")
-            DispatchQueue.main.async {
-                completion(.failure(.screenshotFailed))
+            completion(.failure(.screenshotFailed))
+        }
+    }
+
+    /// Saves a CGImage to a temporary PNG file
+    private func saveCGImage(_ image: CGImage, completion: @escaping (Result<URL, OCRError>) -> Void) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("screenshot_\(UUID().uuidString).png")
+
+            guard let destination = CGImageDestinationCreateWithURL(tempURL as CFURL, kUTTypePNG, 1, nil) else {
+                print("❌ Failed to create image destination")
+                DispatchQueue.main.async {
+                    completion(.failure(.screenshotFailed))
+                }
+                return
             }
+
+            CGImageDestinationAddImage(destination, image, nil)
+
+            if CGImageDestinationFinalize(destination) {
+                print("✅ Screenshot saved successfully")
+                print("   Saved to: \(tempURL.path)")
+                DispatchQueue.main.async {
+                    completion(.success(tempURL))
+                }
+            } else {
+                print("❌ Failed to save screenshot")
+                DispatchQueue.main.async {
+                    completion(.failure(.screenshotFailed))
+                }
+            }
+        }
+    }
+
+    /// Fallback method for macOS < 14.0 (captures full screen)
+    private func captureFallback(completion: @escaping (Result<URL, OCRError>) -> Void) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            Thread.sleep(forTimeInterval: 0.5) // Allow window switching
+
+            let displayID = CGMainDisplayID()
+
+            guard let image = CGDisplayCreateImage(displayID) else {
+                print("❌ Failed to capture display")
+                DispatchQueue.main.async {
+                    completion(.failure(.screenshotFailed))
+                }
+                return
+            }
+
+            self.saveCGImage(image, completion: completion)
         }
     }
 

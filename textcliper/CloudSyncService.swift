@@ -39,14 +39,30 @@ class CloudSyncService: ObservableObject {
     private var isCloudKitAvailable = false
 
     private init() {
-        // Disable iCloud sync by default since it requires proper signing
-        self.iCloudSyncEnabled = false
+        // Load saved preference
+        self.iCloudSyncEnabled = UserDefaults.standard.bool(forKey: "iCloudSyncEnabled")
 
-        // Don't try to initialize CloudKit in development mode
-        // It will crash without proper entitlements and signing
-        // Users can enable this feature after signing the app with Apple Developer account
-        print("ℹ️ CloudKit disabled - requires code signing with Apple Developer account")
-        self.isCloudKitAvailable = false
+        // Use the actual container created by Apple (with Team ID prefix)
+        self.container = CKContainer(identifier: "iCloud.L5774582ZK.MIT.textcliper")
+        self.database = container?.privateCloudDatabase
+
+        print("📦 Using CloudKit container: iCloud.L5774582ZK.MIT.textcliper")
+
+        // Check if CloudKit is available
+        Task {
+            let available = await checkiCloudStatus()
+            await MainActor.run {
+                self.isCloudKitAvailable = available
+                if available {
+                    print("☁️ CloudKit is available and ready!")
+                    if self.iCloudSyncEnabled {
+                        self.startAutoSync()
+                    }
+                } else {
+                    print("⚠️ CloudKit is not available. Please sign in to iCloud in System Settings.")
+                }
+            }
+        }
     }
 
     // MARK: - Public Methods
@@ -68,6 +84,16 @@ class CloudSyncService: ObservableObject {
             let savedRecord = try await database.save(record)
             HistoryService.shared.markAsSynced(itemID: item.id, cloudRecordID: savedRecord.recordID.recordName)
             print("✅ Uploaded item to iCloud: \(item.preview)")
+        } catch let error as CKError {
+            // Handle duplicate record error gracefully
+            if error.code == .serverRecordChanged || error.code == .batchRequestFailed {
+                print("⚠️ Record already exists in iCloud, skipping: \(item.preview)")
+                // Mark as synced anyway since it exists in cloud
+                HistoryService.shared.markAsSynced(itemID: item.id, cloudRecordID: record.recordID.recordName)
+            } else {
+                print("❌ Failed to upload item: \(error.localizedDescription)")
+                throw error
+            }
         } catch {
             print("❌ Failed to upload item: \(error.localizedDescription)")
             throw error

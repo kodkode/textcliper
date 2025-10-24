@@ -2,13 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- No sandbox-specific entitlements needed -->
-	<!-- App now runs unsandboxed with full system access -->
-
-	<!-- iCloud capability for history sync -->
+	<key>com.apple.developer.aps-environment</key>
+	<string>development</string>
 	<key>com.apple.developer.icloud-container-identifiers</key>
 	<array>
-		<string>iCloud.$(CFBundleIdentifier)</string>
+		<string>iCloud.L5774582ZK.MIT.textcliper</string>
 	</array>
 	<key>com.apple.developer.icloud-services</key>
 	<array>
@@ -16,7 +14,23 @@
 	</array>
 	<key>com.apple.developer.ubiquity-container-identifiers</key>
 	<array>
-		<string>iCloud.$(CFBundleIdentifier)</string>
+		<string>iCloud.L5774582ZK.MIT.textcliper</string>
+	</array>
+	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
+	<string>$(TeamIdentifierPrefix)$(CFBundleIdentifier)</string>
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<key>com.apple.security.app-sandbox.temporary-exception.apple-events</key>
+	<string>com.apple.finder</string>
+	<key>com.apple.security.device.camera</key>
+	<true/>
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	<key>com.apple.security.network.client</key>
+	<true/>
+	<key>com.apple.security.temporary-exception.mach-register.global-name</key>
+	<array>
+		<string>com.apple.screencapture.interactive</string>
 	</array>
 </dict>
 </plist>
