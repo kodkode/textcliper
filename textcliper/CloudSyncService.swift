@@ -101,34 +101,15 @@ class CloudSyncService: ObservableObject {
     }
 
     func downloadNewItems() async throws -> [HistoryItem] {
-        guard iCloudSyncEnabled, let database = database else { return [] }
+        guard iCloudSyncEnabled else { return [] }
 
-        let query = CKQuery(recordType: "CaptureHistory", predicate: NSPredicate(value: true))
-        query.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
+        // For now, disable download functionality until CloudKit schema is properly configured
+        // Upload still works fine!
+        print("ℹ️ Download skipped - CloudKit schema needs 'timestamp' field to be indexed")
+        print("   Your uploads to iCloud are still working!")
+        print("   To enable download: Add 'timestamp' as queryable/sortable in CloudKit Dashboard")
 
-        do {
-            let (results, _) = try await database.records(matching: query, resultsLimit: 50)
-
-            var newItems: [HistoryItem] = []
-            let existingIDs = Set(HistoryService.shared.items.map { $0.cloudRecordID })
-
-            for (_, result) in results {
-                switch result {
-                case .success(let record):
-                    if let item = HistoryItem(from: record),
-                       !existingIDs.contains(record.recordID.recordName) {
-                        newItems.append(item)
-                    }
-                case .failure(let error):
-                    print("❌ Failed to process record: \(error.localizedDescription)")
-                }
-            }
-
-            return newItems
-        } catch {
-            print("❌ Failed to download items: \(error.localizedDescription)")
-            throw error
-        }
+        return []
     }
 
     // MARK: - Private Methods
@@ -146,11 +127,20 @@ class CloudSyncService: ObservableObject {
             }
 
             // Download new items from other devices
-            let newItems = try await downloadNewItems()
-            for item in newItems {
-                await MainActor.run {
-                    HistoryService.shared.addItem(item)
+            // Make this non-fatal - if download fails, upload still succeeded
+            var downloadedCount = 0
+            do {
+                let newItems = try await downloadNewItems()
+                for item in newItems {
+                    await MainActor.run {
+                        HistoryService.shared.addItem(item)
+                    }
                 }
+                downloadedCount = newItems.count
+            } catch {
+                // Download failed but upload succeeded - log and continue
+                print("⚠️ Download failed (upload succeeded): \(error.localizedDescription)")
+                // Don't throw - we want to mark sync as successful if upload worked
             }
 
             await MainActor.run {
@@ -166,7 +156,7 @@ class CloudSyncService: ObservableObject {
                 }
             }
 
-            print("✅ Sync completed: \(unsyncedItems.count) uploaded, \(newItems.count) downloaded")
+            print("✅ Sync completed: \(unsyncedItems.count) uploaded, \(downloadedCount) downloaded")
         } catch {
             await MainActor.run {
                 syncStatus = .error(error.localizedDescription)
