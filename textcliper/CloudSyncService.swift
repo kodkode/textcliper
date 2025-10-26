@@ -101,13 +101,18 @@ class CloudSyncService: ObservableObject {
     }
 
     func downloadNewItems() async throws -> [HistoryItem] {
-        guard iCloudSyncEnabled, let database = database else { return [] }
+        guard iCloudSyncEnabled, let database = database else {
+            print("⚠️ CloudKit not enabled or database not available")
+            return []
+        }
+
+        print("🔍 CloudKit download - Creating query operation...")
 
         return try await withCheckedThrowingContinuation { continuation in
-            // Use CKQueryOperation with MINIMAL query - no sort descriptors to avoid issues
+            var hasResumed = false // Prevent double-resume
+
+            // Use CKQueryOperation with MINIMAL query
             let query = CKQuery(recordType: "CaptureHistory", predicate: NSPredicate(value: true))
-            // NO sort descriptors - we'll sort locally after fetching
-            // Even with timestamp indexed, sorting in the query can cause issues
 
             let operation = CKQueryOperation(query: query)
             operation.resultsLimit = 50
@@ -115,20 +120,32 @@ class CloudSyncService: ObservableObject {
             var fetchedRecords: [CKRecord] = []
             let existingCloudRecordNames = Set(HistoryService.shared.items.compactMap { $0.cloudRecordID })
 
+            print("🔍 CloudKit download - Operation configured, adding callbacks...")
+
             // Handle each record as it arrives
             operation.recordMatchedBlock = { recordID, recordResult in
+                print("📦 Received record callback for: \(recordID.recordName)")
                 switch recordResult {
                 case .success(let record):
                     fetchedRecords.append(record)
+                    print("   ✅ Record fetched successfully")
                 case .failure(let error):
-                    print("❌ Failed to fetch record \(recordID.recordName): \(error.localizedDescription)")
+                    print("   ❌ Failed to fetch record: \(error.localizedDescription)")
                 }
             }
 
             // Handle query completion
             operation.queryResultBlock = { result in
+                print("🏁 Query completion callback triggered")
+                guard !hasResumed else {
+                    print("⚠️ Continuation already resumed, ignoring")
+                    return
+                }
+                hasResumed = true
+
                 switch result {
                 case .success:
+                    print("✅ Query succeeded, processing \(fetchedRecords.count) records")
                     var newItems: [HistoryItem] = []
 
                     for record in fetchedRecords {
@@ -145,12 +162,12 @@ class CloudSyncService: ObservableObject {
                         print("ℹ️ All \(fetchedRecords.count) cloud items already exist locally")
                     }
 
-                    // Sort locally by timestamp (newest first) since we can't sort in CloudKit query
                     let sortedItems = newItems.sorted { $0.timestamp > $1.timestamp }
+                    print("✅ Download complete, returning \(sortedItems.count) new items")
                     continuation.resume(returning: sortedItems)
 
                 case .failure(let error):
-                    print("❌ Failed to download items: \(error.localizedDescription)")
+                    print("❌ Query failed: \(error.localizedDescription)")
                     if let ckError = error as? CKError {
                         print("   CKError code: \(ckError.code.rawValue)")
                     }
@@ -158,7 +175,9 @@ class CloudSyncService: ObservableObject {
                 }
             }
 
+            print("🔍 CloudKit download - Adding operation to database...")
             database.add(operation)
+            print("🔍 CloudKit download - Operation added, waiting for results...")
         }
     }
 
@@ -179,8 +198,10 @@ class CloudSyncService: ObservableObject {
             // Download new items from other devices
             // Make this non-fatal - if download fails, upload still succeeded
             var downloadedCount = 0
+            print("🔄 Starting download from iCloud...")
             do {
                 let newItems = try await downloadNewItems()
+                print("📊 Download result: received \(newItems.count) items from iCloud")
                 for item in newItems {
                     await MainActor.run {
                         HistoryService.shared.addItem(item)
