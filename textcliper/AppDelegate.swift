@@ -91,11 +91,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func attemptHotkeyRegistration() {
-        let hasPermission = HotkeyManager.shared.checkAccessibilityPermissions()
-        print("🔍 Accessibility permission check: \(hasPermission)")
+        // Check if this is a multi-key sequence (which needs Accessibility permission)
+        let needsAccessibility = currentKeySequence.count > 1
 
-        // Try to register regardless of check result
-        // The check sometimes returns false even when permission is granted (Xcode bug)
+        if needsAccessibility {
+            let hasPermission = HotkeyManager.shared.checkAccessibilityPermissions()
+            print("🔍 Multi-key sequence - Accessibility permission check: \(hasPermission)")
+
+            // If no permission, explicitly prompt to add app to Accessibility list
+            if !hasPermission {
+                print("⚠️ No Accessibility permission - requesting...")
+                _ = HotkeyManager.shared.promptForAccessibilityPermissions()
+            }
+        } else {
+            print("🔍 Single-key sequence - using Carbon hotkey (no Accessibility needed)")
+        }
+
+        // Try to register hotkey
         let success = HotkeyManager.shared.registerHotkey(
             sequence: currentKeySequence
         ) { [weak self] in
@@ -107,13 +119,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             hotkeyRegistered = true
             print("✅ Hotkey successfully registered: \(currentKeySequence.displayString())")
         } else {
-            print("❌ Hotkey registration failed - accessibility permission may not be granted")
-            print("   Go to: System Settings > Privacy & Security > Accessibility")
-            print("   Enable: Xcode (or textcliper), then restart the app")
+            print("❌ Hotkey registration failed")
 
-            // Only show alert if registration actually failed
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                self?.showAccessibilityInstructions()
+            // Only show Accessibility instructions if it's a multi-key sequence
+            if needsAccessibility {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                    self?.showAccessibilityInstructions()
+                }
             }
         }
     }

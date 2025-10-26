@@ -15,6 +15,8 @@ class HotkeyManager {
 
     private var globalMonitor: Any?
     private var localMonitor: Any?
+    private var carbonHotKeyRef: EventHotKeyRef?
+    private var carbonEventHandler: EventHandlerRef?
     private var callback: (() -> Void)?
     private var registeredSequence: KeySequence?
 
@@ -23,7 +25,9 @@ class HotkeyManager {
     private let maxBufferSize = 10
     private var lastSeenModifiers: UInt32 = 0  // Track actual modifier state
 
-    private init() {}
+    private init() {
+        setupCarbonEventHandler()
+    }
 
     /// Registers a global hotkey sequence
     /// - Parameters:
@@ -47,6 +51,13 @@ class HotkeyManager {
 
         print("🔧 Registering hotkey sequence: \(sequence.displayString())")
 
+        // For single-key sequences, use Carbon Event Manager for true global hotkeys
+        if sequence.count == 1 {
+            let press = sequence.presses[0]
+            return registerCarbonHotkey(keyCode: press.keyCode, modifiers: press.modifiers)
+        }
+
+        // For multi-key sequences, use NSEvent monitors (requires Accessibility)
         // Set up global event monitor (works even when app is not active)
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { [weak self] event in
             self?.handleKeyEvent(event)
@@ -76,6 +87,14 @@ class HotkeyManager {
 
     /// Unregisters the global hotkey
     func unregisterHotkey() {
+        // Unregister Carbon hotkey
+        if let hotKeyRef = carbonHotKeyRef {
+            UnregisterEventHotKey(hotKeyRef)
+            carbonHotKeyRef = nil
+            print("🔧 Carbon hotkey unregistered")
+        }
+
+        // Unregister NSEvent monitors
         if let monitor = globalMonitor {
             NSEvent.removeMonitor(monitor)
             globalMonitor = nil
@@ -106,7 +125,7 @@ class HotkeyManager {
             // Record the key press with current modifiers
             let keyPress = KeyPress(keyCode: UInt32(event.keyCode), modifiers: modifiers)
             keypressBuffer.append((press: keyPress, time: now))
-            print("🔵 KeyDown: keyCode=\(event.keyCode), modifiers=\(modifiers)")
+            print("🔵 KeyDown: keyCode=\(event.keyCode), modifiers=\(modifiers), char=\(event.characters ?? "nil")")
             didAddToBuffer = true
 
         } else if event.type == .flagsChanged {
@@ -239,7 +258,84 @@ class HotkeyManager {
         return AXIsProcessTrustedWithOptions(options)
     }
 
+    // MARK: - Carbon Event Manager (for true global hotkeys)
+
+    private func setupCarbonEventHandler() {
+        var eventTypes = [
+            EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+        ]
+
+        let callback: EventHandlerUPP = { (nextHandler, event, userData) -> OSStatus in
+            guard let userData = userData else { return OSStatus(eventNotHandledErr) }
+
+            let manager = Unmanaged<HotkeyManager>.fromOpaque(userData).takeUnretainedValue()
+
+            print("🔥 Carbon hotkey triggered!")
+
+            // Trigger callback on main thread
+            DispatchQueue.main.async {
+                manager.callback?()
+            }
+
+            return noErr
+        }
+
+        let userDataPtr = Unmanaged.passUnretained(self).toOpaque()
+
+        InstallEventHandler(
+            GetApplicationEventTarget(),
+            callback,
+            1,
+            &eventTypes,
+            userDataPtr,
+            &carbonEventHandler
+        )
+    }
+
+    private func registerCarbonHotkey(keyCode: UInt32, modifiers: UInt32) -> Bool {
+        var hotKeyID = EventHotKeyID()
+        hotKeyID.signature = OSType(0x48545359) // 'HTSY' (HoTkeY System)
+        hotKeyID.id = 1
+
+        // Convert Carbon modifiers to Carbon Event Manager format
+        var carbonModifiers: UInt32 = 0
+        if modifiers & UInt32(cmdKey) != 0 {
+            carbonModifiers |= UInt32(cmdKey)
+        }
+        if modifiers & UInt32(shiftKey) != 0 {
+            carbonModifiers |= UInt32(shiftKey)
+        }
+        if modifiers & UInt32(optionKey) != 0 {
+            carbonModifiers |= UInt32(optionKey)
+        }
+        if modifiers & UInt32(controlKey) != 0 {
+            carbonModifiers |= UInt32(controlKey)
+        }
+
+        var hotKeyRef: EventHotKeyRef?
+        let status = RegisterEventHotKey(
+            keyCode,
+            carbonModifiers,
+            hotKeyID,
+            GetApplicationEventTarget(),
+            0,
+            &hotKeyRef
+        )
+
+        if status == noErr, let ref = hotKeyRef {
+            carbonHotKeyRef = ref
+            print("✅ Carbon hotkey registered: keyCode=\(keyCode), modifiers=\(modifiers)")
+            return true
+        } else {
+            print("❌ Failed to register Carbon hotkey: status=\(status)")
+            return false
+        }
+    }
+
     deinit {
+        if let handler = carbonEventHandler {
+            RemoveEventHandler(handler)
+        }
         unregisterHotkey()
     }
 }
