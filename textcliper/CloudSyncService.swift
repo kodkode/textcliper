@@ -101,15 +101,65 @@ class CloudSyncService: ObservableObject {
     }
 
     func downloadNewItems() async throws -> [HistoryItem] {
-        guard iCloudSyncEnabled else { return [] }
+        guard iCloudSyncEnabled, let database = database else { return [] }
 
-        // For now, disable download functionality until CloudKit schema is properly configured
-        // Upload still works fine!
-        print("ℹ️ Download skipped - CloudKit schema needs 'timestamp' field to be indexed")
-        print("   Your uploads to iCloud are still working!")
-        print("   To enable download: Add 'timestamp' as queryable/sortable in CloudKit Dashboard")
+        return try await withCheckedThrowingContinuation { continuation in
+            // Use CKQueryOperation with MINIMAL query - no sort descriptors to avoid issues
+            let query = CKQuery(recordType: "CaptureHistory", predicate: NSPredicate(value: true))
+            // NO sort descriptors - we'll sort locally after fetching
+            // Even with timestamp indexed, sorting in the query can cause issues
 
-        return []
+            let operation = CKQueryOperation(query: query)
+            operation.resultsLimit = 50
+
+            var fetchedRecords: [CKRecord] = []
+            let existingCloudRecordNames = Set(HistoryService.shared.items.compactMap { $0.cloudRecordID })
+
+            // Handle each record as it arrives
+            operation.recordMatchedBlock = { recordID, recordResult in
+                switch recordResult {
+                case .success(let record):
+                    fetchedRecords.append(record)
+                case .failure(let error):
+                    print("❌ Failed to fetch record \(recordID.recordName): \(error.localizedDescription)")
+                }
+            }
+
+            // Handle query completion
+            operation.queryResultBlock = { result in
+                switch result {
+                case .success:
+                    var newItems: [HistoryItem] = []
+
+                    for record in fetchedRecords {
+                        let recordName = record.recordID.recordName
+
+                        if !existingCloudRecordNames.contains(recordName),
+                           let item = HistoryItem(from: record) {
+                            newItems.append(item)
+                            print("📥 Downloaded new item from iCloud: \(item.preview)")
+                        }
+                    }
+
+                    if newItems.isEmpty && !fetchedRecords.isEmpty {
+                        print("ℹ️ All \(fetchedRecords.count) cloud items already exist locally")
+                    }
+
+                    // Sort locally by timestamp (newest first) since we can't sort in CloudKit query
+                    let sortedItems = newItems.sorted { $0.timestamp > $1.timestamp }
+                    continuation.resume(returning: sortedItems)
+
+                case .failure(let error):
+                    print("❌ Failed to download items: \(error.localizedDescription)")
+                    if let ckError = error as? CKError {
+                        print("   CKError code: \(ckError.code.rawValue)")
+                    }
+                    continuation.resume(throwing: error)
+                }
+            }
+
+            database.add(operation)
+        }
     }
 
     // MARK: - Private Methods
