@@ -25,8 +25,8 @@ struct SettingsView: View {
     @AppStorage("additiveClipboardEnabled") private var additiveClipboard = false
 
     // History Settings
-    @AppStorage("maxHistoryItems") private var maxHistoryItems = 100
-    @AppStorage("autoDeleteAfterDays") private var autoDeleteAfterDays = 0 // 0 = never
+    @AppStorage("maxHistoryItems") private var maxHistoryItems = 500
+    @AppStorage("autoDeleteAfterDays") private var autoDeleteAfterDays = 30
 
     // Hotkey display
     @State private var currentHotkey: String = "⌘⇧8"
@@ -201,25 +201,28 @@ struct SettingsView: View {
                 Divider()
 
                 // About Section
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 16) {
                     sectionHeader("About")
 
-                    HStack {
-                        Text("Version")
-                            .frame(width: 120, alignment: .leading)
-                        Text(getAppVersion())
-                            .foregroundColor(.secondary)
-                    }
+                    HStack(spacing: 16) {
+                        // App Icon
+                        if let appIcon = NSImage(named: "AppIcon") {
+                            Image(nsImage: appIcon)
+                                .resizable()
+                                .frame(width: 64, height: 64)
+                                .cornerRadius(12)
+                        }
 
-                    HStack {
-                        Text("GitHub")
-                            .frame(width: 120, alignment: .leading)
-                        Link("github.com/MiTMi/textcliper", destination: URL(string: "https://github.com/MiTMi/textcliper")!)
-                    }
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("textcliper")
+                                .font(.title2)
+                                .fontWeight(.semibold)
 
-                    Text("Created with ❤️ using Claude Code")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                            Text("Version \(getAppVersion())")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 }
             }
             .padding(24)

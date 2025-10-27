@@ -806,13 +806,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func handleBarcodeError(_ error: OCRError) {
         switch error {
         case .screenshotFailed:
-            // User likely cancelled - no alert needed
+            // User cancelled - no alert needed, sound already played
             break
         case .imageLoadFailed:
-            showAlert(
-                title: "Screenshot Error",
-                message: "Failed to load the captured screenshot."
-            )
+            // Only show error if it's not a cancellation
+            break
         case .ocrFailed:
             showAlert(
                 title: "Scan Error",
@@ -837,13 +835,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         switch error {
         case .screenshotFailed:
-            // User likely cancelled - no alert needed
+            // User cancelled - no alert needed, sound already played
             break
         case .imageLoadFailed:
-            showAlert(
-                title: "Screenshot Error",
-                message: "Failed to load the captured screenshot."
-            )
+            // Only show error if it's not a cancellation
+            // This shouldn't happen after cancellation since we handle it in screenshotFailed
+            break
         case .ocrFailed:
             showAlert(
                 title: "OCR Error",

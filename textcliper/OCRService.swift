@@ -42,10 +42,19 @@ class OCRService {
         process.terminationHandler = { proc in
             DispatchQueue.main.async {
                 if proc.terminationStatus == 0 {
-                    print("✅ Screenshot captured successfully")
-                    completion(.success(tempURL))
+                    // Check if file was actually created (user might have cancelled)
+                    if FileManager.default.fileExists(atPath: tempURL.path) {
+                        print("✅ Screenshot captured successfully")
+                        completion(.success(tempURL))
+                    } else {
+                        print("ℹ️ Screenshot cancelled by user")
+                        NSSound.beep() // Play system beep sound
+                        completion(.failure(.screenshotFailed))
+                    }
                 } else {
-                    print("❌ screencapture failed with status \(proc.terminationStatus)")
+                    // Non-zero exit status - user likely cancelled (pressed ESC)
+                    print("ℹ️ Screenshot cancelled by user (exit status: \(proc.terminationStatus))")
+                    NSSound.beep() // Play system beep sound
                     completion(.failure(.screenshotFailed))
                 }
             }
