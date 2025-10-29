@@ -18,6 +18,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private weak var hotkeyWindow: NSWindow?
     private weak var historyWindow: NSWindow?
     private weak var settingsWindow: NSWindow?
+    private var onboardingWindowController: OnboardingWindowController?
     private var capturedText: String = ""
     private var hotkeyRegistered = false
     private var additiveClipboardEnabled = false // Additive clipboard mode
@@ -25,6 +26,94 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var captureMenuItem: NSMenuItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Check if onboarding has been completed
+        if !UserDefaults.standard.bool(forKey: "hasCompletedOnboarding") {
+            showOnboarding()
+            return
+        }
+
+        // Load saved hotkey preferences
+        loadHotkeyPreferences()
+
+        // Request notification permissions
+        requestNotificationPermissions()
+
+        // Create status bar item
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+
+        if let button = statusItem?.button {
+            button.image = NSImage(systemSymbolName: "doc.text.viewfinder", accessibilityDescription: "Screen to Text")
+            button.imagePosition = .imageLeading
+        }
+
+        // Create menu
+        setupMenu()
+
+        // Register global hotkey
+        attemptHotkeyRegistration()
+
+        // Listen for app becoming active to retry hotkey registration
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(appDidActivate),
+            name: NSWorkspace.didActivateApplicationNotification,
+            object: nil
+        )
+
+        // Listen for notifications from SettingsView
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleShowHotkeyRecorder),
+            name: NSNotification.Name("ShowHotkeyRecorder"),
+            object: nil
+        )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleShowAPIKeyConfig),
+            name: NSNotification.Name("ShowAPIKeyConfig"),
+            object: nil
+        )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleUpdateMenuBarVisibility),
+            name: NSNotification.Name("UpdateMenuBarVisibility"),
+            object: nil
+        )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleUpdateAdditiveClipboard),
+            name: NSNotification.Name("UpdateAdditiveClipboard"),
+            object: nil
+        )
+    }
+
+    // MARK: - Onboarding
+
+    private func showOnboarding() {
+        onboardingWindowController = OnboardingWindowController()
+        onboardingWindowController?.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+
+        // Set up notification to initialize app when onboarding is completed
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: onboardingWindowController?.window,
+            queue: .main
+        ) { [weak self] _ in
+            // Check if onboarding was completed
+            if UserDefaults.standard.bool(forKey: "hasCompletedOnboarding") {
+                self?.initializeApp()
+            } else {
+                // User closed window without completing - quit app
+                NSApplication.shared.terminate(nil)
+            }
+        }
+    }
+
+    private func initializeApp() {
         // Load saved hotkey preferences
         loadHotkeyPreferences()
 
