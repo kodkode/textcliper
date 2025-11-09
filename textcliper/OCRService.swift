@@ -673,4 +673,6 @@ class OCRService {
             }
         }
     }
+
+    /// Imports an image file and performs OCR
 }

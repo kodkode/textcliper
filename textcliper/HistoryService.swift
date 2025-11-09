@@ -91,7 +91,7 @@ class HistoryService: ObservableObject {
         if encryptionEnabled, let encryptedData = UserDefaults.standard.data(forKey: encryptedStorageKey) {
             if let decryptedData = try? EncryptionService.shared.decrypt(encryptedData),
                let decoded = try? JSONDecoder().decode([HistoryItem].self, from: decryptedData) {
-                items = decoded
+                items = decoded.sorted { $0.timestamp > $1.timestamp }
                 print("🔓 Loaded \(items.count) encrypted history items")
                 return
             }
@@ -100,7 +100,7 @@ class HistoryService: ObservableObject {
         // Fallback to unencrypted (for migration from old version)
         if let data = UserDefaults.standard.data(forKey: storageKey),
            let decoded = try? JSONDecoder().decode([HistoryItem].self, from: data) {
-            items = decoded
+            items = decoded.sorted { $0.timestamp > $1.timestamp }
             print("📦 Loaded \(items.count) unencrypted history items (will encrypt on next save)")
 
             // Migrate to encrypted storage

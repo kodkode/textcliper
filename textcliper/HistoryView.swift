@@ -15,10 +15,11 @@ struct HistoryView: View {
     @State private var selectedItem: HistoryItem?
 
     var filteredItems: [HistoryItem] {
+        let items = historyService.items.sorted { $0.timestamp > $1.timestamp }
         if searchText.isEmpty {
-            return historyService.items
+            return items
         }
-        return historyService.items.filter { $0.text.localizedCaseInsensitiveContains(searchText) }
+        return items.filter { $0.text.localizedCaseInsensitiveContains(searchText) }
     }
 
     var body: some View {
