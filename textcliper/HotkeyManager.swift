@@ -40,7 +40,6 @@ class HotkeyManager {
         unregisterHotkey()
 
         guard !sequence.isEmpty else {
-            print("❌ Cannot register empty sequence")
             return false
         }
 
@@ -49,7 +48,6 @@ class HotkeyManager {
         self.keypressBuffer = []
         self.lastSeenModifiers = 0
 
-        print("🔧 Registering hotkey sequence: \(sequence.displayString())")
 
         // For single-key sequences, use Carbon Event Manager for true global hotkeys
         if sequence.count == 1 {
@@ -70,10 +68,8 @@ class HotkeyManager {
         }
 
         if globalMonitor != nil || localMonitor != nil {
-            print("✅ Hotkey sequence registered successfully")
             return true
         } else {
-            print("❌ Failed to register hotkey sequence")
             return false
         }
     }
@@ -91,7 +87,6 @@ class HotkeyManager {
         if let hotKeyRef = carbonHotKeyRef {
             UnregisterEventHotKey(hotKeyRef)
             carbonHotKeyRef = nil
-            print("🔧 Carbon hotkey unregistered")
         }
 
         // Unregister NSEvent monitors
@@ -110,7 +105,6 @@ class HotkeyManager {
         keypressBuffer = []
         lastSeenModifiers = 0
 
-        print("🔧 Hotkey unregistered")
     }
 
     private func handleKeyEvent(_ event: NSEvent) {
@@ -125,7 +119,6 @@ class HotkeyManager {
             // Record the key press with current modifiers
             let keyPress = KeyPress(keyCode: UInt32(event.keyCode), modifiers: modifiers)
             keypressBuffer.append((press: keyPress, time: now))
-            print("🔵 KeyDown: keyCode=\(event.keyCode), modifiers=\(modifiers), char=\(event.characters ?? "nil")")
             didAddToBuffer = true
 
         } else if event.type == .flagsChanged {
@@ -137,16 +130,13 @@ class HotkeyManager {
                     // Modifier key was PRESSED - record it temporarily
                     let keyPress = KeyPress(keyCode: UInt32(event.keyCode), modifiers: modifiers)
                     keypressBuffer.append((press: keyPress, time: now))
-                    print("🟡 Modifier press: keyCode=\(event.keyCode), modifiers=\(lastSeenModifiers)→\(modifiers)")
                     didAddToBuffer = true
                 } else if modifiers < lastSeenModifiers {
                     // Modifiers decreased/released - clear any pending modifier-only presses
-                    print("🔻 Modifier released: modifiers=\(lastSeenModifiers)→\(modifiers)")
 
                     // If buffer only contains modifiers (no regular keys), clear it
                     let hasRegularKey = keypressBuffer.contains { !isModifierKeyCode($0.press.keyCode) }
                     if !hasRegularKey && !keypressBuffer.isEmpty {
-                        print("🧹 Clearing modifier-only buffer")
                         keypressBuffer.removeAll()
                     }
                 }
@@ -177,7 +167,6 @@ class HotkeyManager {
             // Is this a modifier key?
             if isModifierKeyCode(entry.press.keyCode) {
                 indicesToRemove.append(i)
-                print("🔀 Merging modifier from buffer: keyCode=\(entry.press.keyCode)")
             } else {
                 // Hit a non-modifier key, stop
                 break
@@ -190,12 +179,10 @@ class HotkeyManager {
         }
 
         if !indicesToRemove.isEmpty {
-            print("✅ Merged \(indicesToRemove.count) modifiers into combo")
         }
     }
 
     private func checkForMatch(at now: Date) {
-        print("📝 Buffer size: \(keypressBuffer.count)")
 
         // Trim buffer to max size
         if keypressBuffer.count > maxBufferSize {
@@ -210,21 +197,17 @@ class HotkeyManager {
 
         // Check if buffer matches registered sequence
         if let sequence = registeredSequence {
-            print("🎯 Checking match - Registered: \(sequence.displayString()), Buffer count: \(keypressBuffer.count)")
             if sequence.matches(buffer: keypressBuffer) {
-                print("🔥 Hotkey sequence matched!")
 
                 // Clear buffer AND reset modifier state to allow immediate re-trigger
                 keypressBuffer = []
                 lastSeenModifiers = 0
-                print("♻️ Reset state for next trigger")
 
                 // Trigger callback on main thread
                 DispatchQueue.main.async { [weak self] in
                     self?.callback?()
                 }
             } else {
-                print("❌ No match")
             }
         }
     }
@@ -270,7 +253,6 @@ class HotkeyManager {
 
             let manager = Unmanaged<HotkeyManager>.fromOpaque(userData).takeUnretainedValue()
 
-            print("🔥 Carbon hotkey triggered!")
 
             // Trigger callback on main thread
             DispatchQueue.main.async {
@@ -324,10 +306,8 @@ class HotkeyManager {
 
         if status == noErr, let ref = hotKeyRef {
             carbonHotKeyRef = ref
-            print("✅ Carbon hotkey registered: keyCode=\(keyCode), modifiers=\(modifiers)")
             return true
         } else {
-            print("❌ Failed to register Carbon hotkey: status=\(status)")
             return false
         }
     }

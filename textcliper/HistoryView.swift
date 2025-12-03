@@ -314,7 +314,12 @@ struct HistoryDetailView: View {
                 .buttonStyle(.borderedProminent)
 
                 Button("Share...") {
-                    ShareService.shared.shareWithSheet(text: item.text)
+                    // Use native macOS share picker
+                    let picker = NSSharingServicePicker(items: [item.text])
+                    if let window = NSApp.windows.first(where: { $0.isVisible }),
+                       let contentView = window.contentView {
+                        picker.show(relativeTo: contentView.bounds, of: contentView, preferredEdge: .minY)
+                    }
                 }
                 .buttonStyle(.bordered)
             }

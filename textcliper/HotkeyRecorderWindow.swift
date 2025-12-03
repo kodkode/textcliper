@@ -154,7 +154,6 @@ struct HotkeyRecorderWindow: View {
             // Record the key press with current modifiers
             let keyPress = KeyPress(keyCode: UInt32(event.keyCode), modifiers: modifiers)
             recordedPresses.append(keyPress)
-            print("🔵 Recorded keyDown: keyCode=\(event.keyCode), modifiers=\(modifiers)")
 
             updateDisplay()
             scheduleFinalization()
@@ -175,7 +174,6 @@ struct HotkeyRecorderWindow: View {
                     // (might get merged later if part of a combo)
                     let keyPress = KeyPress(keyCode: UInt32(event.keyCode), modifiers: modifiers)
                     recordedPresses.append(keyPress)
-                    print("🟡 Recorded modifier press: keyCode=\(event.keyCode), modifiers=\(modifiers)")
 
                     updateDisplay()
                     scheduleFinalization()
@@ -205,7 +203,6 @@ struct HotkeyRecorderWindow: View {
             if isModifierKeyCode(press.keyCode) {
                 // Mark for removal - this was part of the combo
                 indicesToRemove.append(i)
-                print("🔀 Merging modifier: keyCode=\(press.keyCode)")
             } else {
                 // Hit a non-modifier key, stop looking
                 break
@@ -218,7 +215,6 @@ struct HotkeyRecorderWindow: View {
         }
 
         if !indicesToRemove.isEmpty {
-            print("✅ Merged \(indicesToRemove.count) modifiers into combo")
         }
     }
 
@@ -269,7 +265,6 @@ struct HotkeyRecorderWindow: View {
     HotkeyRecorderWindow(
         sequence: $sequence,
         onSave: { newSequence in
-            print("Saved sequence: \(newSequence.displayString())")
         }
     )
 }

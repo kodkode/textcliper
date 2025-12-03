@@ -60,11 +60,9 @@ class OCRCacheService {
         // Check if entry is expired
         if entry.isExpired {
             cache.removeObject(forKey: hash as NSString)
-            print("🗑️ [Cache] Expired entry removed for hash: \(hash.prefix(8))...")
             return nil
         }
 
-        print("✅ [Cache] Hit! Returning cached result for hash: \(hash.prefix(8))...")
         return entry.text
     }
 
@@ -78,12 +76,10 @@ class OCRCacheService {
         let cost = text.utf8.count // Use text size as cost
 
         cache.setObject(entry, forKey: hash as NSString, cost: cost)
-        print("💾 [Cache] Stored result for hash: \(hash.prefix(8))... (size: \(cost) bytes)")
     }
 
     /// Clear all cached results
     func clearCache() {
         cache.removeAllObjects()
-        print("🗑️ [Cache] All cached results cleared")
     }
 }

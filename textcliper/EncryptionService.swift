@@ -28,9 +28,7 @@ class EncryptionService {
         // Try to load existing key or generate new one
         do {
             _ = try getOrCreateEncryptionKey()
-            print("🔐 Encryption service initialized")
         } catch {
-            print("⚠️ Failed to initialize encryption: \(error.localizedDescription)")
         }
     }
 
@@ -110,7 +108,6 @@ class EncryptionService {
         try saveKeyToKeychain(keyData)
 
         cachedKey = key
-        print("🔑 Generated new encryption key")
 
         return key
     }
@@ -181,6 +178,5 @@ class EncryptionService {
         // Generate new key
         _ = try getOrCreateEncryptionKey()
 
-        print("🔄 Encryption key reset")
     }
 }

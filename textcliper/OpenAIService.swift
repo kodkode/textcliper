@@ -59,7 +59,6 @@ class OpenAIService {
 
             // Log encoding time
             let encodingTime = CFAbsoluteTimeGetCurrent() - startTime
-            print("📦 [OpenAI] Image encoded in \(String(format: "%.2f", encodingTime))s")
 
             // Prepare API request
             let payload: [String: Any] = [
@@ -107,14 +106,11 @@ class OpenAIService {
             request.httpBody = jsonData
             request.timeoutInterval = 180  // 3 minutes for GPT-5 with reasoning
 
-            print("⏱️ [OpenAI] API request started (model: \(self.model))...")
 
             // Send request
             let task = URLSession.shared.dataTask(with: request) { data, response, error in
                 let timeElapsed = CFAbsoluteTimeGetCurrent() - startTime
                 if let error = error {
-                    print("❌ [OpenAI] Network Error: \(error.localizedDescription)")
-                    print("⏱️ [OpenAI] Failed after: \(String(format: "%.2f", timeElapsed))s")
                     DispatchQueue.main.async {
                         completion(.failure(.networkError(error.localizedDescription)))
                     }
@@ -122,8 +118,6 @@ class OpenAIService {
                 }
 
                 guard let data = data else {
-                    print("❌ [OpenAI] No data received")
-                    print("⏱️ [OpenAI] Failed after: \(String(format: "%.2f", timeElapsed))s")
                     DispatchQueue.main.async {
                         completion(.failure(.invalidResponse))
                     }
@@ -133,8 +127,6 @@ class OpenAIService {
                 // Parse response
                 do {
                     guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                        print("❌ [OpenAI] Invalid JSON response")
-                        print("⏱️ [OpenAI] Failed after: \(String(format: "%.2f", timeElapsed))s")
                         DispatchQueue.main.async {
                             completion(.failure(.invalidResponse))
                         }
@@ -144,8 +136,6 @@ class OpenAIService {
                     // Check for API error first
                     if let error = json["error"] as? [String: Any],
                        let errorMessage = error["message"] as? String {
-                        print("❌ [OpenAI] API Error: \(errorMessage)")
-                        print("⏱️ [OpenAI] Failed after: \(String(format: "%.2f", timeElapsed))s")
                         DispatchQueue.main.async {
                             completion(.failure(.apiError(errorMessage)))
                         }
@@ -168,9 +158,6 @@ class OpenAIService {
                           let firstChoice = choices.first,
                           let message = firstChoice["message"] as? [String: Any],
                           let content = message["content"] as? String else {
-                        print("❌ [OpenAI] Could not extract content from response")
-                        print("   Response structure: \(json)")
-                        print("⏱️ [OpenAI] Failed after: \(String(format: "%.2f", timeElapsed))s")
                         DispatchQueue.main.async {
                             completion(.failure(.invalidResponse))
                         }
@@ -178,13 +165,6 @@ class OpenAIService {
                     }
 
                     // Log success with detailed metrics
-                    print("✅ [OpenAI] OCR completed successfully")
-                    print("⏱️ [OpenAI] Response time: \(String(format: "%.2f", timeElapsed))s")
-                    print("📊 [OpenAI] Token Usage:")
-                    print("   • Prompt tokens:     \(promptTokens)")
-                    print("   • Completion tokens: \(completionTokens)")
-                    print("   • Total tokens:      \(totalTokens)")
-                    print("📝 [OpenAI] Extracted text: \(content.prefix(100))...")
 
                     let cleanedText = content.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -195,8 +175,6 @@ class OpenAIService {
                         completion(.success(cleanedText))
                     }
                 } catch {
-                    print("❌ [OpenAI] JSON parsing error: \(error)")
-                    print("⏱️ [OpenAI] Failed after: \(String(format: "%.2f", timeElapsed))s")
                     DispatchQueue.main.async {
                         completion(.failure(.invalidResponse))
                     }

@@ -274,19 +274,15 @@ struct SettingsView: View {
         do {
             if enabled {
                 try SMAppService.mainApp.register()
-                print("✅ Launch at login enabled")
             } else {
                 try SMAppService.mainApp.unregister()
-                print("✅ Launch at login disabled")
             }
         } catch {
-            print("❌ Failed to set launch at login: \(error)")
         }
     }
 
     private func clearHistory() {
         HistoryService.shared.clearAll()
-        print("✅ History cleared")
     }
 
     private func getAppVersion() -> String {

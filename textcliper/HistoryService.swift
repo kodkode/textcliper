@@ -80,7 +80,6 @@ class HistoryService: ObservableObject {
 
         let itemsRemoved = itemsBeforeCleanup - items.count
         if itemsRemoved > 0 {
-            print("🗑️ Cleaned up \(itemsRemoved) items older than \(retentionDays) days")
         }
     }
 
@@ -92,7 +91,6 @@ class HistoryService: ObservableObject {
             if let decryptedData = try? EncryptionService.shared.decrypt(encryptedData),
                let decoded = try? JSONDecoder().decode([HistoryItem].self, from: decryptedData) {
                 items = decoded.sorted { $0.timestamp > $1.timestamp }
-                print("🔓 Loaded \(items.count) encrypted history items")
                 return
             }
         }
@@ -101,7 +99,6 @@ class HistoryService: ObservableObject {
         if let data = UserDefaults.standard.data(forKey: storageKey),
            let decoded = try? JSONDecoder().decode([HistoryItem].self, from: data) {
             items = decoded.sorted { $0.timestamp > $1.timestamp }
-            print("📦 Loaded \(items.count) unencrypted history items (will encrypt on next save)")
 
             // Migrate to encrypted storage
             if encryptionEnabled {
@@ -110,7 +107,6 @@ class HistoryService: ObservableObject {
             return
         }
 
-        print("📝 No history found, starting fresh")
     }
 
     private func saveHistory() {
@@ -124,14 +120,11 @@ class HistoryService: ObservableObject {
                 // Remove old unencrypted data
                 UserDefaults.standard.removeObject(forKey: storageKey)
 
-                print("🔐 Saved \(items.count) items (encrypted)")
             } catch {
-                print("❌ Failed to encrypt history: \(error.localizedDescription)")
 
                 // Fallback to unencrypted
                 if let encoded = try? JSONEncoder().encode(items) {
                     UserDefaults.standard.set(encoded, forKey: storageKey)
-                    print("⚠️ Saved unencrypted as fallback")
                 }
             }
         } else {

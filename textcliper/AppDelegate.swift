@@ -14,7 +14,6 @@ import Carbon
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var menu: NSMenu?
-    private weak var editWindow: NSWindow?
     private weak var hotkeyWindow: NSWindow?
     private weak var historyWindow: NSWindow?
     private weak var settingsWindow: NSWindow?
@@ -185,30 +184,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         if needsAccessibility {
             let hasPermission = HotkeyManager.shared.checkAccessibilityPermissions()
-            print("🔍 Multi-key sequence - Accessibility permission check: \(hasPermission)")
 
             // If no permission, explicitly prompt to add app to Accessibility list
             if !hasPermission {
-                print("⚠️ No Accessibility permission - requesting...")
                 _ = HotkeyManager.shared.promptForAccessibilityPermissions()
             }
         } else {
-            print("🔍 Single-key sequence - using Carbon hotkey (no Accessibility needed)")
         }
 
         // Try to register hotkey
         let success = HotkeyManager.shared.registerHotkey(
             sequence: currentKeySequence
         ) { [weak self] in
-            print("🔥 Hotkey triggered!")
             self?.triggerCaptureAndCopy()
         }
 
         if success {
             hotkeyRegistered = true
-            print("✅ Hotkey successfully registered: \(currentKeySequence.displayString())")
         } else {
-            print("❌ Hotkey registration failed")
 
             // Only show Accessibility instructions if it's a multi-key sequence
             if needsAccessibility {
@@ -430,7 +423,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func scanBarcode() {
-        print("📱 Triggering QR/Barcode scan...")
 
         OCRService.shared.captureAndScanBarcode { [weak self] result in
             switch result {
@@ -442,29 +434,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @objc private func editText() {
-        if capturedText.isEmpty {
-            showAlert(
-                title: "No Text Captured",
-                message: "Please capture a screenshot first using 'Capture Screenshot' or the hotkey ⌘⇧8."
-            )
-            return
-        }
-
-        openEditWindow()
-    }
-
     @objc private func toggleAdditiveClipboard(_ sender: NSMenuItem) {
         additiveClipboardEnabled.toggle()
         sender.state = additiveClipboardEnabled ? .on : .off
 
         let status = additiveClipboardEnabled ? "enabled" : "disabled"
-        print("📋 Additive Clipboard \(status)")
 
         // Clear clipboard when toggling OFF
         if !additiveClipboardEnabled {
             NSPasteboard.general.clearContents()
-            print("🗑️ Clipboard cleared")
         }
 
         // Show a brief notification
@@ -513,41 +491,35 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         sender.state = newValue ? .on : .off
 
         let status = newValue ? "enabled" : "disabled"
-        print("🤖 AI-Enhanced OCR \(status)")
     }
 
     @objc private func selectOpenAI() {
         UserDefaults.standard.set("openai", forKey: "aiProvider")
         setupMenu() // Refresh menu to update checkmarks
         let model = UserDefaults.standard.string(forKey: "openaiModel") ?? "gpt-4o"
-        print("🔄 Switched to OpenAI (\(model))")
     }
 
     @objc private func selectGemini() {
         UserDefaults.standard.set("gemini", forKey: "aiProvider")
         setupMenu() // Refresh menu to update checkmarks
         let model = UserDefaults.standard.string(forKey: "geminiModel") ?? "gemini-2.5-flash"
-        print("🔄 Switched to Google Gemini (\(model))")
     }
 
     @objc private func selectOCRSpace() {
         UserDefaults.standard.set("ocrspace", forKey: "aiProvider")
         setupMenu() // Refresh menu to update checkmarks
-        print("🔄 Switched to OCR.space")
     }
 
     @objc private func selectGeminiModel(_ sender: NSMenuItem) {
         guard let modelId = sender.representedObject as? String else { return }
         UserDefaults.standard.set(modelId, forKey: "geminiModel")
         setupMenu() // Refresh menu to update checkmarks
-        print("🔄 Switched Gemini model to \(modelId)")
     }
 
     @objc private func selectOpenAIModel(_ sender: NSMenuItem) {
         guard let modelId = sender.representedObject as? String else { return }
         UserDefaults.standard.set(modelId, forKey: "openaiModel")
         setupMenu() // Refresh menu to update checkmarks
-        print("🔄 Switched OpenAI model to \(modelId)")
     }
 
     @objc private func configureAPIKey() {
@@ -612,7 +584,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let openAIKey = openAIField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
             if !openAIKey.isEmpty {
                 if KeychainService.shared.saveOpenAIKey(openAIKey) {
-                    print("✅ OpenAI API key saved to Keychain")
                 } else {
                     showAlert(title: "Error", message: "Failed to save OpenAI API key.")
                     return
@@ -623,7 +594,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let geminiKey = geminiField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
             if !geminiKey.isEmpty {
                 if KeychainService.shared.saveGeminiKey(geminiKey) {
-                    print("✅ Gemini API key saved to Keychain")
                 } else {
                     showAlert(title: "Error", message: "Failed to save Gemini API key.")
                     return
@@ -634,7 +604,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let ocrSpaceKey = ocrSpaceField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
             if !ocrSpaceKey.isEmpty {
                 if KeychainService.shared.saveOCRSpaceKey(ocrSpaceKey) {
-                    print("✅ OCR.space API key saved to Keychain")
                 } else {
                     showAlert(title: "Error", message: "Failed to save OCR.space API key.")
                     return
@@ -745,7 +714,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Save as JSON
         if let jsonString = currentKeySequence.toJSONString() {
             UserDefaults.standard.set(jsonString, forKey: "hotkeySequence")
-            print("💾 Saved hotkey sequence: \(currentKeySequence.displayString())")
         }
     }
 
@@ -754,7 +722,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let jsonString = UserDefaults.standard.string(forKey: "hotkeySequence"),
            let sequence = KeySequence.fromJSONString(jsonString) {
             currentKeySequence = sequence
-            print("📂 Loaded hotkey sequence: \(currentKeySequence.displayString())")
             return
         }
 
@@ -762,7 +729,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let savedKeyCode = UserDefaults.standard.object(forKey: "hotkeyKeyCode") as? UInt32,
            let savedModifiers = UserDefaults.standard.object(forKey: "hotkeyModifiers") as? UInt32 {
             currentKeySequence = KeySequence(legacyKeyCode: savedKeyCode, legacyModifiers: savedModifiers)
-            print("📂 Loaded legacy hotkey, converted to sequence: \(currentKeySequence.displayString())")
             // Save in new format
             saveHotkeyPreferences()
         }
@@ -815,7 +781,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func triggerCaptureAndCopy() {
         // Let the screencapture tool handle permissions natively
         // macOS will prompt automatically when needed (first time only)
-        print("📸 Triggering screenshot capture...")
 
         // Proceed with capture - screencapture will handle permission prompts
         OCRService.shared.captureAndExtractText { [weak self] result in
@@ -948,54 +913,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    // MARK: - Edit Window
-
-    private func openEditWindow() {
-        // Close existing window if open
-        editWindow?.close()
-
-        // Create text binding using a class to hold the state
-        let textHolder = TextHolder(text: capturedText)
-
-        let contentView = TextEditorWindow(
-            text: textHolder.binding,
-            onCopy: { [weak self] editedText in
-                self?.capturedText = editedText
-                let result = ClipboardManager.shared.copyToClipboard(editedText)
-
-                if case .success = result {
-                    self?.showNotification(
-                        title: "Text Copied",
-                        message: "Edited text copied to clipboard."
-                    )
-                }
-            },
-            showShareActions: false
-        )
-
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 600, height: 400),
-            styleMask: [.titled, .closable, .resizable],
-            backing: .buffered,
-            defer: false
-        )
-        window.contentView = NSHostingView(rootView: contentView)
-        window.title = "Edit Captured Text"
-        window.center()
-        window.level = .floating
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-        window.isReleasedWhenClosed = false
-
-        editWindow = window
-    }
-
     // MARK: - Notifications
 
     private func requestNotificationPermissions() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
             if let error = error {
-                print("Notification permission error: \(error.localizedDescription)")
             }
         }
     }
@@ -1014,7 +936,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
-                print("Notification error: \(error.localizedDescription)")
             }
         }
     }

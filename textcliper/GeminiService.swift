@@ -58,7 +58,6 @@ class GeminiService {
 
             // Log encoding time
             let encodingTime = CFAbsoluteTimeGetCurrent() - startTime
-            print("📦 [Gemini] Image encoded in \(String(format: "%.2f", encodingTime))s")
 
             // Prepare API request - Gemini uses different format than OpenAI
             let payload: [String: Any] = [
@@ -104,14 +103,11 @@ class GeminiService {
             request.httpBody = jsonData
             request.timeoutInterval = 60  // Gemini Flash is very fast
 
-            print("⏱️ [Gemini] API request started...")
 
             // Send request
             let task = URLSession.shared.dataTask(with: request) { data, response, error in
                 let timeElapsed = CFAbsoluteTimeGetCurrent() - startTime
                 if let error = error {
-                    print("❌ [Gemini] Network Error: \(error.localizedDescription)")
-                    print("⏱️ [Gemini] Failed after: \(String(format: "%.2f", timeElapsed))s")
                     DispatchQueue.main.async {
                         completion(.failure(.networkError(error.localizedDescription)))
                     }
@@ -119,8 +115,6 @@ class GeminiService {
                 }
 
                 guard let data = data else {
-                    print("❌ [Gemini] No data received")
-                    print("⏱️ [Gemini] Failed after: \(String(format: "%.2f", timeElapsed))s")
                     DispatchQueue.main.async {
                         completion(.failure(.invalidResponse))
                     }
@@ -130,8 +124,6 @@ class GeminiService {
                 // Parse response
                 do {
                     guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                        print("❌ [Gemini] Invalid JSON response")
-                        print("⏱️ [Gemini] Failed after: \(String(format: "%.2f", timeElapsed))s")
                         DispatchQueue.main.async {
                             completion(.failure(.invalidResponse))
                         }
@@ -141,8 +133,6 @@ class GeminiService {
                     // Check for API error first
                     if let error = json["error"] as? [String: Any],
                        let errorMessage = error["message"] as? String {
-                        print("❌ [Gemini] API Error: \(errorMessage)")
-                        print("⏱️ [Gemini] Failed after: \(String(format: "%.2f", timeElapsed))s")
                         DispatchQueue.main.async {
                             completion(.failure(.apiError(errorMessage)))
                         }
@@ -167,9 +157,6 @@ class GeminiService {
                           let parts = content["parts"] as? [[String: Any]],
                           let firstPart = parts.first,
                           let text = firstPart["text"] as? String else {
-                        print("❌ [Gemini] Could not extract content from response")
-                        print("   Response structure: \(json)")
-                        print("⏱️ [Gemini] Failed after: \(String(format: "%.2f", timeElapsed))s")
                         DispatchQueue.main.async {
                             completion(.failure(.invalidResponse))
                         }
@@ -177,13 +164,6 @@ class GeminiService {
                     }
 
                     // Log success with detailed metrics
-                    print("✅ [Gemini] OCR completed successfully")
-                    print("⏱️ [Gemini] Response time: \(String(format: "%.2f", timeElapsed))s")
-                    print("📊 [Gemini] Token Usage:")
-                    print("   • Input tokens:  \(inputTokens)")
-                    print("   • Output tokens: \(outputTokens)")
-                    print("   • Total tokens:  \(totalTokens)")
-                    print("📝 [Gemini] Extracted text: \(text.prefix(100))...")
 
                     let cleanedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -194,8 +174,6 @@ class GeminiService {
                         completion(.success(cleanedText))
                     }
                 } catch {
-                    print("❌ [Gemini] JSON parsing error: \(error)")
-                    print("⏱️ [Gemini] Failed after: \(String(format: "%.2f", timeElapsed))s")
                     DispatchQueue.main.async {
                         completion(.failure(.invalidResponse))
                     }

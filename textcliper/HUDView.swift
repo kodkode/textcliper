@@ -14,16 +14,14 @@ struct HUDView: View {
     let fullText: String
     let showActions: Bool
     let isAdditive: Bool
-    let onShare: ((ShareDestination) -> Void)?
 
-    init(message: String, characterCount: Int, wordCount: Int, fullText: String = "", showActions: Bool = false, isAdditive: Bool = false, onShare: ((ShareDestination) -> Void)? = nil) {
+    init(message: String, characterCount: Int, wordCount: Int, fullText: String = "", showActions: Bool = false, isAdditive: Bool = false) {
         self.message = message
         self.characterCount = characterCount
         self.wordCount = wordCount
         self.fullText = fullText
         self.showActions = showActions
         self.isAdditive = isAdditive
-        self.onShare = onShare
     }
 
     var body: some View {
@@ -126,10 +124,7 @@ struct ShareActionButton: View {
                 characterCount: 156,
                 wordCount: 23,
                 fullText: "Full text here",
-                showActions: true,
-                onShare: { destination in
-                    print("Share to: \(destination)")
-                }
+                showActions: true
             )
         }
         .padding()

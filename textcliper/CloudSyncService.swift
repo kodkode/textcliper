@@ -46,7 +46,6 @@ class CloudSyncService: ObservableObject {
         self.container = CKContainer(identifier: "iCloud.L5774582ZK.MIT.textcliper")
         self.database = container?.privateCloudDatabase
 
-        print("📦 Using CloudKit container: iCloud.L5774582ZK.MIT.textcliper")
 
         // Check if CloudKit is available
         Task {
@@ -54,12 +53,10 @@ class CloudSyncService: ObservableObject {
             await MainActor.run {
                 self.isCloudKitAvailable = available
                 if available {
-                    print("☁️ CloudKit is available and ready!")
                     if self.iCloudSyncEnabled {
                         self.startAutoSync()
                     }
                 } else {
-                    print("⚠️ CloudKit is not available. Please sign in to iCloud in System Settings.")
                 }
             }
         }
@@ -83,30 +80,24 @@ class CloudSyncService: ObservableObject {
         do {
             let savedRecord = try await database.save(record)
             HistoryService.shared.markAsSynced(itemID: item.id, cloudRecordID: savedRecord.recordID.recordName)
-            print("✅ Uploaded item to iCloud: \(item.preview)")
         } catch let error as CKError {
             // Handle duplicate record error gracefully
             if error.code == .serverRecordChanged || error.code == .batchRequestFailed {
-                print("⚠️ Record already exists in iCloud, skipping: \(item.preview)")
                 // Mark as synced anyway since it exists in cloud
                 HistoryService.shared.markAsSynced(itemID: item.id, cloudRecordID: record.recordID.recordName)
             } else {
-                print("❌ Failed to upload item: \(error.localizedDescription)")
                 throw error
             }
         } catch {
-            print("❌ Failed to upload item: \(error.localizedDescription)")
             throw error
         }
     }
 
     func downloadNewItems() async throws -> [HistoryItem] {
         guard iCloudSyncEnabled, let database = database else {
-            print("⚠️ CloudKit not enabled or database not available")
             return []
         }
 
-        print("🔍 CloudKit download - Starting paginated download...")
 
         var allFetchedRecords: [CKRecord] = []
         let existingCloudRecordNames = Set(HistoryService.shared.items.compactMap { $0.cloudRecordID })
@@ -120,25 +111,20 @@ class CloudSyncService: ObservableObject {
 
         // Fetch all pages using cursor-based pagination
         repeat {
-            print("📄 Fetching batch \(batchNumber)...")
 
             let (records, nextCursor) = try await fetchBatch(query: query, cursor: cursor, database: database)
 
             allFetchedRecords.append(contentsOf: records)
             cursor = nextCursor
 
-            print("   ✅ Batch \(batchNumber): Fetched \(records.count) records")
             if nextCursor != nil {
-                print("   ➡️  More records available, fetching next batch...")
             } else {
-                print("   🏁 No more records to fetch")
             }
 
             batchNumber += 1
 
         } while cursor != nil
 
-        print("✅ Total records fetched from iCloud: \(allFetchedRecords.count)")
 
         // Process all fetched records
         var newItems: [HistoryItem] = []
@@ -149,16 +135,13 @@ class CloudSyncService: ObservableObject {
             if !existingCloudRecordNames.contains(recordName),
                let item = HistoryItem(from: record) {
                 newItems.append(item)
-                print("📥 Downloaded new item from iCloud: \(item.preview)")
             }
         }
 
         if newItems.isEmpty && !allFetchedRecords.isEmpty {
-            print("ℹ️ All \(allFetchedRecords.count) cloud items already exist locally")
         }
 
         let sortedItems = newItems.sorted { $0.timestamp > $1.timestamp }
-        print("✅ Download complete, returning \(sortedItems.count) new items")
 
         return sortedItems
     }
@@ -187,14 +170,13 @@ class CloudSyncService: ObservableObject {
                 case .success(let record):
                     fetchedRecords.append(record)
                 case .failure(let error):
-                    print("   ❌ Failed to fetch record \(recordID.recordName): \(error.localizedDescription)")
+                    break // Ignore individual record fetch errors
                 }
             }
 
             // Handle batch completion
             operation.queryResultBlock = { result in
                 guard !hasResumed else {
-                    print("⚠️ Continuation already resumed, ignoring")
                     return
                 }
                 hasResumed = true
@@ -205,9 +187,7 @@ class CloudSyncService: ObservableObject {
                     continuation.resume(returning: (fetchedRecords, cursor))
 
                 case .failure(let error):
-                    print("❌ Batch query failed: \(error.localizedDescription)")
                     if let ckError = error as? CKError {
-                        print("   CKError code: \(ckError.code.rawValue)")
                     }
                     continuation.resume(throwing: error)
                 }
@@ -234,10 +214,8 @@ class CloudSyncService: ObservableObject {
             // Download new items from other devices
             // Make this non-fatal - if download fails, upload still succeeded
             var downloadedCount = 0
-            print("🔄 Starting download from iCloud...")
             do {
                 let newItems = try await downloadNewItems()
-                print("📊 Download result: received \(newItems.count) items from iCloud")
                 for item in newItems {
                     await MainActor.run {
                         HistoryService.shared.addItem(item)
@@ -246,7 +224,6 @@ class CloudSyncService: ObservableObject {
                 downloadedCount = newItems.count
             } catch {
                 // Download failed but upload succeeded - log and continue
-                print("⚠️ Download failed (upload succeeded): \(error.localizedDescription)")
                 // Don't throw - we want to mark sync as successful if upload worked
             }
 
@@ -263,11 +240,9 @@ class CloudSyncService: ObservableObject {
                 }
             }
 
-            print("✅ Sync completed: \(unsyncedItems.count) uploaded, \(downloadedCount) downloaded")
         } catch {
             await MainActor.run {
                 syncStatus = .error(error.localizedDescription)
-                print("❌ Sync failed: \(error.localizedDescription)")
             }
         }
     }
@@ -298,7 +273,6 @@ class CloudSyncService: ObservableObject {
             let status = try await container.accountStatus()
             return status == .available
         } catch {
-            print("❌ Failed to check iCloud status: \(error.localizedDescription)")
             return false
         }
     }

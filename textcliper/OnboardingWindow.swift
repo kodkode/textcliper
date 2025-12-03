@@ -250,7 +250,6 @@ struct ScreenRecordingPermissionPage: View {
             // Clean up temp file
             try? FileManager.default.removeItem(atPath: NSTemporaryDirectory() + "textcliper_temp.png")
         } catch {
-            print("Failed to trigger screencapture: \(error)")
         }
     }
 

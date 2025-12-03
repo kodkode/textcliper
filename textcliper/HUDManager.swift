@@ -49,10 +49,7 @@ class HUDManager {
             wordCount: wordCount,
             fullText: fullText,
             showActions: showActions,
-            isAdditive: isAdditive,
-            onShare: { [weak self] destination in
-                self?.handleShare(text: fullText, destination: destination)
-            }
+            isAdditive: isAdditive
         )
 
         // Create window with dynamic height based on content
@@ -172,19 +169,4 @@ class HUDManager {
         })
     }
 
-    private func handleShare(text: String, destination: ShareDestination) {
-        // Dismiss HUD immediately when user clicks share button
-        dismissHUD()
-
-        // Perform share action
-        ShareService.shared.share(text: text, to: destination) { result in
-            switch result {
-            case .success:
-                print("✅ Successfully shared to \(destination)")
-            case .failure(let error):
-                print("❌ Failed to share: \(error)")
-                // Could show an error HUD here if needed
-            }
-        }
-    }
 }

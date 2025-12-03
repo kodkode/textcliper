@@ -44,19 +44,14 @@ class iCloudSyncService {
             DispatchQueue.main.async {
                 switch status {
                 case .available:
-                    print("✅ iCloud is available")
                     completion(true, nil)
                 case .noAccount:
-                    print("⚠️ No iCloud account signed in")
                     completion(false, NSError(domain: "iCloud", code: 1, userInfo: [NSLocalizedDescriptionKey: "No iCloud account. Please sign in to Settings."]))
                 case .restricted:
-                    print("⚠️ iCloud is restricted")
                     completion(false, NSError(domain: "iCloud", code: 2, userInfo: [NSLocalizedDescriptionKey: "iCloud access is restricted."]))
                 case .couldNotDetermine:
-                    print("⚠️ Could not determine iCloud status")
                     completion(false, NSError(domain: "iCloud", code: 3, userInfo: [NSLocalizedDescriptionKey: "Could not determine iCloud status."]))
                 case .temporarilyUnavailable:
-                    print("⚠️ iCloud temporarily unavailable")
                     completion(false, NSError(domain: "iCloud", code: 4, userInfo: [NSLocalizedDescriptionKey: "iCloud is temporarily unavailable."]))
                 @unknown default:
                     completion(false, NSError(domain: "iCloud", code: 5, userInfo: [NSLocalizedDescriptionKey: "Unknown iCloud status."]))
@@ -71,7 +66,6 @@ class iCloudSyncService {
     func syncSetting(key: String, value: Any) {
         ubiquitousStore.set(value, forKey: key)
         ubiquitousStore.synchronize()
-        print("☁️ Synced setting: \(key)")
     }
 
     /// Get a setting from iCloud
@@ -84,7 +78,6 @@ class iCloudSyncService {
     func removeSetting(key: String) {
         ubiquitousStore.removeObject(forKey: key)
         ubiquitousStore.synchronize()
-        print("☁️ Removed setting: \(key)")
     }
 
     @objc private func iCloudStoreDidChange(notification: Notification) {
@@ -93,14 +86,13 @@ class iCloudSyncService {
         if let reason = userInfo[NSUbiquitousKeyValueStoreChangeReasonKey] as? Int {
             switch reason {
             case NSUbiquitousKeyValueStoreServerChange:
-                print("☁️ iCloud settings changed from another device")
                 NotificationCenter.default.post(name: .iCloudSettingsChanged, object: nil)
             case NSUbiquitousKeyValueStoreInitialSyncChange:
-                print("☁️ Initial iCloud sync completed")
+                break // Initial sync completed
             case NSUbiquitousKeyValueStoreQuotaViolationChange:
-                print("⚠️ iCloud quota exceeded")
+                break // Quota exceeded
             case NSUbiquitousKeyValueStoreAccountChange:
-                print("☁️ iCloud account changed")
+                break // Account changed
             default:
                 break
             }
@@ -119,10 +111,8 @@ class iCloudSyncService {
         privateDatabase.save(record) { savedRecord, error in
             DispatchQueue.main.async {
                 if let error = error {
-                    print("❌ Failed to save OCR history to iCloud: \(error.localizedDescription)")
                     completion(false, error)
                 } else {
-                    print("☁️ OCR history saved to iCloud")
                     completion(true, nil)
                 }
             }
@@ -154,7 +144,7 @@ class iCloudSyncService {
                     historyItems.append(item)
                 }
             case .failure(let error):
-                print("⚠️ Error fetching record: \(error.localizedDescription)")
+                break // Ignore individual record errors
             }
         }
 
@@ -162,10 +152,8 @@ class iCloudSyncService {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    print("☁️ Fetched \(historyItems.count) OCR history items from iCloud")
                     completion(historyItems, nil)
                 case .failure(let error):
-                    print("❌ Failed to fetch OCR history: \(error.localizedDescription)")
                     completion([], error)
                 }
             }
@@ -181,10 +169,8 @@ class iCloudSyncService {
         privateDatabase.delete(withRecordID: recordID) { deletedRecordID, error in
             DispatchQueue.main.async {
                 if let error = error {
-                    print("❌ Failed to delete OCR history: \(error.localizedDescription)")
                     completion(false, error)
                 } else {
-                    print("☁️ OCR history deleted from iCloud")
                     completion(true, nil)
                 }
             }
@@ -212,10 +198,8 @@ class iCloudSyncService {
                 DispatchQueue.main.async {
                     switch result {
                     case .success:
-                        print("☁️ Cleared all OCR history from iCloud")
                         completion(true, nil)
                     case .failure(let error):
-                        print("❌ Failed to clear OCR history: \(error.localizedDescription)")
                         completion(false, error)
                     }
                 }

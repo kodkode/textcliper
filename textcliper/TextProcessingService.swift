@@ -78,7 +78,6 @@ class TextProcessingService {
         if let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue | NSTextCheckingResult.CheckingType.phoneNumber.rawValue) {
             let matches = detector.matches(in: text, range: NSRange(location: 0, length: nsString.length))
 
-            print("🔍 Detection: Found \(matches.count) matches in text of length \(text.count)")
 
             for match in matches {
                 let value = nsString.substring(with: match.range)
@@ -86,17 +85,14 @@ class TextProcessingService {
                 if match.resultType == .link {
                     if let url = match.url {
                         let type: DetectionType = url.scheme == "mailto" ? .email : .url
-                        print("   ✓ Detected \(type): \(value)")
                         items.append(DetectedItem(range: match.range, type: type, value: value))
                     }
                 } else if match.resultType == .phoneNumber {
-                    print("   ✓ Detected phone: \(value)")
                     items.append(DetectedItem(range: match.range, type: .phoneNumber, value: value))
                 }
             }
         }
 
-        print("   → Total items detected: \(items.count)")
         return items
     }
 
@@ -261,7 +257,6 @@ class TextProcessingService {
             let consistencyRatio = Double(consistentLines) / Double(lines.count)
 
             if mostCommonCount >= 2 && consistencyRatio >= 0.6 {
-                print("📊 Table detected (horizontal): \(lines.count) rows, \(mostCommonCount) columns, \(Int(consistencyRatio * 100))% consistent")
                 return true
             }
         }
@@ -290,7 +285,6 @@ class TextProcessingService {
         let hasTablePattern = priceLines >= 3 && headerLikeLines >= 3
 
         if hasTablePattern {
-            print("📊 Table detected (vertical list): \(lines.count) rows with \(priceLines) price lines, \(headerLikeLines) headers")
             return true
         }
 
@@ -335,7 +329,6 @@ class TextProcessingService {
                 }
             }
 
-            print("✅ Converted to markdown table (horizontal): \(rows.count) rows × \(maxColumns) columns")
             return markdown
         }
 
@@ -390,7 +383,6 @@ class TextProcessingService {
                 }
             }
 
-            print("✅ Converted to markdown table (two-section): \(headerSection.count) headers, \(valueSection.count) values")
             return markdown
         }
 
@@ -418,7 +410,6 @@ class TextProcessingService {
                 markdown += "| " + row.joined(separator: " | ") + " |\n"
             }
 
-            print("✅ Converted to markdown table (alternating pairs): \(tableRows.count) rows")
             return markdown
         }
 

@@ -28,7 +28,6 @@ class OCRService {
     /// Works with sandbox using temporary-exception entitlement (like TextSniper)
     /// - Parameter completion: Called with the temporary file URL or error
     func captureScreenshot(completion: @escaping (Result<URL, OCRError>) -> Void) {
-        print("📸 Starting screenshot capture with interactive selection...")
 
         // Use /usr/sbin/screencapture with -i (interactive) flag
         // This works in sandbox with com.apple.security.temporary-exception.mach-register.global-name entitlement
@@ -44,16 +43,13 @@ class OCRService {
                 if proc.terminationStatus == 0 {
                     // Check if file was actually created (user might have cancelled)
                     if FileManager.default.fileExists(atPath: tempURL.path) {
-                        print("✅ Screenshot captured successfully")
                         completion(.success(tempURL))
                     } else {
-                        print("ℹ️ Screenshot cancelled by user")
                         NSSound.beep() // Play system beep sound
                         completion(.failure(.screenshotFailed))
                     }
                 } else {
                     // Non-zero exit status - user likely cancelled (pressed ESC)
-                    print("ℹ️ Screenshot cancelled by user (exit status: \(proc.terminationStatus))")
                     NSSound.beep() // Play system beep sound
                     completion(.failure(.screenshotFailed))
                 }
@@ -61,10 +57,8 @@ class OCRService {
         }
 
         do {
-            print("🚀 Launching screencapture with interactive mode...")
             try process.run()
         } catch {
-            print("❌ Failed to launch screencapture: \(error)")
             completion(.failure(.screenshotFailed))
         }
     }
@@ -76,7 +70,6 @@ class OCRService {
                 .appendingPathComponent("screenshot_\(UUID().uuidString).png")
 
             guard let destination = CGImageDestinationCreateWithURL(tempURL as CFURL, kUTTypePNG, 1, nil) else {
-                print("❌ Failed to create image destination")
                 DispatchQueue.main.async {
                     completion(.failure(.screenshotFailed))
                 }
@@ -86,13 +79,10 @@ class OCRService {
             CGImageDestinationAddImage(destination, image, nil)
 
             if CGImageDestinationFinalize(destination) {
-                print("✅ Screenshot saved successfully")
-                print("   Saved to: \(tempURL.path)")
                 DispatchQueue.main.async {
                     completion(.success(tempURL))
                 }
             } else {
-                print("❌ Failed to save screenshot")
                 DispatchQueue.main.async {
                     completion(.failure(.screenshotFailed))
                 }
@@ -108,7 +98,6 @@ class OCRService {
             let displayID = CGMainDisplayID()
 
             guard let image = CGDisplayCreateImage(displayID) else {
-                print("❌ Failed to capture display")
                 DispatchQueue.main.async {
                     completion(.failure(.screenshotFailed))
                 }
@@ -156,19 +145,15 @@ class OCRService {
             // Use selected AI provider
             if provider == "openai" {
                 let model = UserDefaults.standard.string(forKey: "openaiModel") ?? "gpt-4o"
-                print("🤖 AI-Enhanced OCR enabled - Using OpenAI (\(model))")
                 self.performOpenAIOCR(on: image, completion: completion)
             } else if provider == "gemini" {
                 let model = UserDefaults.standard.string(forKey: "geminiModel") ?? "gemini-2.5-flash"
-                print("🤖 AI-Enhanced OCR enabled - Using Google Gemini (\(model))")
                 self.performGeminiOCR(on: image, completion: completion)
             } else if provider == "ocrspace" {
-                print("🌐 AI-Enhanced OCR enabled - Using OCR.space")
                 self.performOCRSpaceOCR(on: image, completion: completion)
             }
         } else {
             // Use standard Vision OCR
-            print("📝 Using standard Vision OCR")
             self.performStandardOCR(on: cgImage, completion: completion)
         }
     }
@@ -184,7 +169,6 @@ class OCRService {
                     completion(.success(text))
                 }
             case .failure(let error):
-                print("⚠️ OpenAI OCR failed: \(error), falling back to standard OCR")
                 // Fallback to standard Vision OCR if API fails
                 if let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
                     self.performStandardOCR(on: cgImage, completion: completion)
@@ -206,7 +190,6 @@ class OCRService {
                     completion(.success(text))
                 }
             case .failure(let error):
-                print("⚠️ Gemini OCR failed: \(error), falling back to standard OCR")
                 // Fallback to standard Vision OCR if API fails
                 if let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
                     self.performStandardOCR(on: cgImage, completion: completion)
@@ -228,7 +211,6 @@ class OCRService {
                     completion(.success(text))
                 }
             case .failure(let error):
-                print("⚠️ OCR.space failed: \(error), falling back to standard OCR")
                 // Fallback to standard Vision OCR if API fails
                 if let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
                     self.performStandardOCR(on: cgImage, completion: completion)
@@ -244,7 +226,6 @@ class OCRService {
         DispatchQueue.global(qos: .userInitiated).async {
             let request = VNRecognizeTextRequest { request, error in
                 if let error = error {
-                    print("OCR error: \(error.localizedDescription)")
                     DispatchQueue.main.async {
                         completion(.failure(.ocrFailed))
                     }
@@ -316,7 +297,6 @@ class OCRService {
             do {
                 try handler.perform([request])
             } catch {
-                print("Vision request error: \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     completion(.failure(.ocrFailed))
                 }
@@ -354,7 +334,6 @@ class OCRService {
         DispatchQueue.global(qos: .userInitiated).async {
             let request = VNDetectBarcodesRequest { request, error in
                 if let error = error {
-                    print("Barcode detection error: \(error.localizedDescription)")
                     DispatchQueue.main.async {
                         completion(.failure(.ocrFailed))
                     }
@@ -396,7 +375,6 @@ class OCRService {
             do {
                 try handler.perform([request])
             } catch {
-                print("Vision barcode request error: \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     completion(.failure(.ocrFailed))
                 }
@@ -441,7 +419,6 @@ class OCRService {
 
         if hasColumns {
             let gapString = String(format: "%.2f", Double(horizontalGap))
-            print("📰 Detected two-column layout (gap \(gapString)): \(leftColumn.count) left, \(rightColumn.count) right")
 
             // Sort each column top-to-bottom (Vision coordinates are flipped, so we sort descending)
             leftColumn.sort { $0.boundingBox.origin.y > $1.boundingBox.origin.y }
