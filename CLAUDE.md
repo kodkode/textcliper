@@ -70,28 +70,74 @@ xcodebuild test -project textcliper.xcodeproj -scheme textcliper -destination 'p
 xcodebuild clean -project textcliper.xcodeproj -scheme textcliper
 ```
 
+### Local Installation (Test as End User)
+```bash
+# Install to /Applications for production testing
+./install_to_applications.sh
+
+# This script will:
+# 1. Build Release configuration
+# 2. Terminate running instances
+# 3. Remove old version from /Applications
+# 4. Copy new build to /Applications
+# 5. Launch the installed app
+
+# After installation, grant permissions to "textcliper" (not "Xcode"):
+# - System Settings → Privacy & Security → Screen Recording
+# - System Settings → Privacy & Security → Accessibility
+```
+
+### Fresh Installation Simulation (New User Experience)
+```bash
+# To test the complete new user experience (onboarding, first launch, etc.)
+# First, reset ALL app data and permissions:
+./reset_for_fresh_install.sh
+
+# This will remove:
+# - All capture history and API keys
+# - App preferences and settings
+# - iCloud sync local cache
+# - Privacy permissions
+# - Onboarding completion status
+# - Sandboxed container data
+
+# Then reinstall:
+./install_to_applications.sh
+
+# The app will now behave exactly as it would for a first-time user:
+# - Onboarding flow will be shown
+# - No history or saved data
+# - Permissions must be granted
+# - API keys must be configured
+```
+
 ### Verify Build Configuration
 ```bash
 # Check critical build settings
 xcodebuild -showBuildSettings -project textcliper.xcodeproj -scheme textcliper | grep -E "ENABLE_APP_SANDBOX|GENERATE_INFOPLIST_FILE|INFOPLIST_FILE"
 
-# Expected output:
-#   ENABLE_APP_SANDBOX = NO
+# Expected output (Release configuration):
+#   ENABLE_APP_SANDBOX = YES  (App Store requirement)
 #   GENERATE_INFOPLIST_FILE = NO
 #   INFOPLIST_FILE = textcliper/Info.plist
 
 # Verify permission strings in built app
 plutil -p ~/Library/Developer/Xcode/DerivedData/textcliper*/Build/Products/Debug/textcliper.app/Contents/Info.plist | grep Usage
+
+# Verify sandbox entitlement for screencapture
+codesign -d --entitlements - ~/Library/Developer/Xcode/DerivedData/textcliper*/Build/Products/Release/textcliper.app | grep -A 2 "temporary-exception"
 ```
 
 ## Critical Configuration
 
 ### ⚠️ DO NOT Change These Settings
 
-1. **App Sandbox MUST Be Disabled**
-   - Setting: `ENABLE_APP_SANDBOX = NO` in project.pbxproj
-   - Reason: The app uses `/usr/sbin/screencapture`, which cannot run in sandboxed apps
-   - If enabled: Screenshot capture will fail with permission loops
+1. **App Sandbox Configuration (App Store Version)**
+   - Setting: `ENABLE_APP_SANDBOX = YES` in Release configuration (required for App Store)
+   - Special entitlement: `com.apple.security.temporary-exception.mach-register.global-name` with value `com.apple.screencapture.interactive`
+   - This allows `/usr/sbin/screencapture` to work within the sandbox (similar to TextSniper)
+   - **Critical**: The entitlement MUST be present in `textcliper.entitlements` for interactive screenshot selection to work
+   - If removed: Screenshot capture will fail even with Screen Recording permission
 
 2. **Manual Info.plist MUST Be Used**
    - Settings in project.pbxproj:
@@ -121,8 +167,9 @@ If permission issues arise:
 # 1. Check if permission strings are in BUILT app (not just source)
 plutil -p ~/Library/Developer/Xcode/DerivedData/textcliper*/Build/Products/Debug/textcliper.app/Contents/Info.plist | grep NSScreenCaptureUsageDescription
 
-# 2. Verify sandbox is disabled
-xcodebuild -showBuildSettings -project textcliper.xcodeproj -scheme textcliper | grep ENABLE_APP_SANDBOX
+# 2. Verify sandbox configuration and entitlements
+xcodebuild -showBuildSettings -project textcliper.xcodeproj -scheme textcliper -configuration Release | grep ENABLE_APP_SANDBOX
+codesign -d --entitlements - ~/Library/Developer/Xcode/DerivedData/textcliper*/Build/Products/Release/textcliper.app | grep -A 2 "temporary-exception"
 
 # 3. Reset permissions for clean test
 tccutil reset ScreenCapture
@@ -197,9 +244,9 @@ Uses Vision framework with VNRecognizeTextRequest:
 - **Note**: When running from Xcode, permission goes to Xcode, not the app
 
 ### "screencapture not executing"
-- **Cause**: App Sandbox enabled
-- **Fix**: Verify `ENABLE_APP_SANDBOX = NO` in build settings
-- **Reason**: Sandboxed apps cannot execute system binaries
+- **Cause**: Missing temporary-exception entitlement
+- **Fix**: Verify `com.apple.security.temporary-exception.mach-register.global-name` entitlement exists in `textcliper.entitlements`
+- **Reason**: Sandboxed apps need this special entitlement to communicate with screencapture service
 
 ## Documentation
 
@@ -241,10 +288,11 @@ textcliper/
 4. Test with clean TCC state: `tccutil reset ServiceName`
 
 ### Modifying Build Settings
-1. Never enable App Sandbox
-2. Never enable Info.plist auto-generation
-3. Verify changes: `xcodebuild -showBuildSettings | grep SETTING_NAME`
-4. Test clean build: `xcodebuild clean build`
+1. Keep App Sandbox enabled for App Store builds (Release configuration)
+2. Ensure temporary-exception entitlement remains in entitlements file
+3. Never enable Info.plist auto-generation
+4. Verify changes: `xcodebuild -showBuildSettings | grep SETTING_NAME`
+5. Test clean build: `xcodebuild clean build`
 
 ### Debugging Permission Issues
 1. Always check the BUILT app bundle, not source files
@@ -252,6 +300,43 @@ textcliper/
 3. Use `codesign` to verify actual entitlements
 4. Reset TCC between tests for clean state
 5. Check Console.app for system permission logs
+
+## iCloud Sync Implementation
+
+### CloudKit Sync Limits
+
+**Upload:** Unlimited - all unsynced items are uploaded to CloudKit
+**Download:** Cursor-based pagination (50 items per batch)
+- Automatically fetches ALL items from CloudKit using pagination
+- No data loss - continues fetching until all records are downloaded
+- Sorted by timestamp (newest first)
+
+**Local Storage:**
+- Maximum 1000 items (safety limit)
+- Auto-deletes items older than 30 days
+- Cleanup runs on app launch and when adding items
+
+### How Pagination Works
+
+The app uses CloudKit cursor-based pagination to ensure ALL history items are downloaded:
+
+1. First batch: Fetches up to 50 items
+2. If cursor exists: Fetches next 50 items
+3. Repeats until cursor is nil (all items fetched)
+4. Processes all fetched records and adds new items to local storage
+
+**Example:** If you have 700 items in iCloud:
+- Batch 1: Items 1-50
+- Batch 2: Items 51-100
+- ...
+- Batch 14: Items 651-700
+- Result: All 700 items downloaded successfully
+
+This ensures no data loss when:
+- Reinstalling the app
+- Setting up on a new device
+- After clearing local data
+- After being offline for extended periods
 
 ## Important Notes
 
@@ -261,3 +346,4 @@ textcliper/
 - OCR happens on background thread with main-thread completion
 - Temp files are automatically cleaned up after OCR
 - The app supports both hotkey trigger and manual menu trigger
+- iCloud sync uses cursor-based pagination to download ALL items (no 50-item limit)

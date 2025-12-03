@@ -106,37 +106,93 @@ class CloudSyncService: ObservableObject {
             return []
         }
 
-        print("🔍 CloudKit download - Creating query operation...")
+        print("🔍 CloudKit download - Starting paginated download...")
 
+        var allFetchedRecords: [CKRecord] = []
+        let existingCloudRecordNames = Set(HistoryService.shared.items.compactMap { $0.cloudRecordID })
+
+        // Initial query
+        let query = CKQuery(recordType: "CaptureHistory", predicate: NSPredicate(value: true))
+        query.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)] // Newest first
+
+        var cursor: CKQueryOperation.Cursor? = nil
+        var batchNumber = 1
+
+        // Fetch all pages using cursor-based pagination
+        repeat {
+            print("📄 Fetching batch \(batchNumber)...")
+
+            let (records, nextCursor) = try await fetchBatch(query: query, cursor: cursor, database: database)
+
+            allFetchedRecords.append(contentsOf: records)
+            cursor = nextCursor
+
+            print("   ✅ Batch \(batchNumber): Fetched \(records.count) records")
+            if nextCursor != nil {
+                print("   ➡️  More records available, fetching next batch...")
+            } else {
+                print("   🏁 No more records to fetch")
+            }
+
+            batchNumber += 1
+
+        } while cursor != nil
+
+        print("✅ Total records fetched from iCloud: \(allFetchedRecords.count)")
+
+        // Process all fetched records
+        var newItems: [HistoryItem] = []
+
+        for record in allFetchedRecords {
+            let recordName = record.recordID.recordName
+
+            if !existingCloudRecordNames.contains(recordName),
+               let item = HistoryItem(from: record) {
+                newItems.append(item)
+                print("📥 Downloaded new item from iCloud: \(item.preview)")
+            }
+        }
+
+        if newItems.isEmpty && !allFetchedRecords.isEmpty {
+            print("ℹ️ All \(allFetchedRecords.count) cloud items already exist locally")
+        }
+
+        let sortedItems = newItems.sorted { $0.timestamp > $1.timestamp }
+        print("✅ Download complete, returning \(sortedItems.count) new items")
+
+        return sortedItems
+    }
+
+    /// Fetch a single batch of records (up to 50 items per batch)
+    private func fetchBatch(query: CKQuery, cursor: CKQueryOperation.Cursor?, database: CKDatabase) async throws -> ([CKRecord], CKQueryOperation.Cursor?) {
         return try await withCheckedThrowingContinuation { continuation in
-            var hasResumed = false // Prevent double-resume
+            var hasResumed = false
 
-            // Use CKQueryOperation with MINIMAL query
-            let query = CKQuery(recordType: "CaptureHistory", predicate: NSPredicate(value: true))
+            let operation: CKQueryOperation
+            if let cursor = cursor {
+                // Continue from cursor
+                operation = CKQueryOperation(cursor: cursor)
+            } else {
+                // Initial query
+                operation = CKQueryOperation(query: query)
+            }
 
-            let operation = CKQueryOperation(query: query)
-            operation.resultsLimit = 50
+            operation.resultsLimit = 50 // Fetch 50 items per batch
 
             var fetchedRecords: [CKRecord] = []
-            let existingCloudRecordNames = Set(HistoryService.shared.items.compactMap { $0.cloudRecordID })
-
-            print("🔍 CloudKit download - Operation configured, adding callbacks...")
 
             // Handle each record as it arrives
             operation.recordMatchedBlock = { recordID, recordResult in
-                print("📦 Received record callback for: \(recordID.recordName)")
                 switch recordResult {
                 case .success(let record):
                     fetchedRecords.append(record)
-                    print("   ✅ Record fetched successfully")
                 case .failure(let error):
-                    print("   ❌ Failed to fetch record: \(error.localizedDescription)")
+                    print("   ❌ Failed to fetch record \(recordID.recordName): \(error.localizedDescription)")
                 }
             }
 
-            // Handle query completion
+            // Handle batch completion
             operation.queryResultBlock = { result in
-                print("🏁 Query completion callback triggered")
                 guard !hasResumed else {
                     print("⚠️ Continuation already resumed, ignoring")
                     return
@@ -144,30 +200,12 @@ class CloudSyncService: ObservableObject {
                 hasResumed = true
 
                 switch result {
-                case .success:
-                    print("✅ Query succeeded, processing \(fetchedRecords.count) records")
-                    var newItems: [HistoryItem] = []
-
-                    for record in fetchedRecords {
-                        let recordName = record.recordID.recordName
-
-                        if !existingCloudRecordNames.contains(recordName),
-                           let item = HistoryItem(from: record) {
-                            newItems.append(item)
-                            print("📥 Downloaded new item from iCloud: \(item.preview)")
-                        }
-                    }
-
-                    if newItems.isEmpty && !fetchedRecords.isEmpty {
-                        print("ℹ️ All \(fetchedRecords.count) cloud items already exist locally")
-                    }
-
-                    let sortedItems = newItems.sorted { $0.timestamp > $1.timestamp }
-                    print("✅ Download complete, returning \(sortedItems.count) new items")
-                    continuation.resume(returning: sortedItems)
+                case .success(let cursor):
+                    // Return records and cursor for next batch
+                    continuation.resume(returning: (fetchedRecords, cursor))
 
                 case .failure(let error):
-                    print("❌ Query failed: \(error.localizedDescription)")
+                    print("❌ Batch query failed: \(error.localizedDescription)")
                     if let ckError = error as? CKError {
                         print("   CKError code: \(ckError.code.rawValue)")
                     }
@@ -175,9 +213,7 @@ class CloudSyncService: ObservableObject {
                 }
             }
 
-            print("🔍 CloudKit download - Adding operation to database...")
             database.add(operation)
-            print("🔍 CloudKit download - Operation added, waiting for results...")
         }
     }
 

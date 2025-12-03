@@ -73,7 +73,8 @@ class KeychainService {
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
             kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+            kSecAttrSynchronizable as String: false  // Prevent iCloud Keychain sync
         ]
 
         let status = SecItemAdd(query as CFDictionary, nil)
@@ -86,7 +87,8 @@ class KeychainService {
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
             kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
+            kSecMatchLimit as String: kSecMatchLimitOne,
+            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny  // Match both synced and non-synced
         ]
 
         var result: AnyObject?
@@ -105,7 +107,8 @@ class KeychainService {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: account
+            kSecAttrAccount as String: account,
+            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny  // Delete both synced and non-synced
         ]
 
         let status = SecItemDelete(query as CFDictionary)
