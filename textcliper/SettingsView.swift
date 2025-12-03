@@ -74,6 +74,42 @@ struct SettingsView: View {
 
                     Toggle("AI-Enhanced OCR", isOn: $aiEnhancedOCR)
                         .help("Use AI to improve OCR accuracy and formatting")
+                        .onChange(of: aiEnhancedOCR) { _, newValue in
+                            if newValue {
+                                // Check if API key is configured for current provider
+                                let hasKey: Bool
+                                let providerName: String
+
+                                if aiProvider == "openai" {
+                                    hasKey = KeychainService.shared.getOpenAIKey() != nil
+                                    providerName = "OpenAI"
+                                } else if aiProvider == "gemini" {
+                                    hasKey = KeychainService.shared.getGeminiKey() != nil
+                                    providerName = "Gemini"
+                                } else if aiProvider == "ocrspace" {
+                                    hasKey = KeychainService.shared.getOCRSpaceKey() != nil
+                                    providerName = "OCR.space"
+                                } else {
+                                    hasKey = false
+                                    providerName = "Unknown"
+                                }
+
+                                if !hasKey {
+                                    // Revert the toggle
+                                    aiEnhancedOCR = false
+
+                                    // Show alert
+                                    DispatchQueue.main.async {
+                                        let alert = NSAlert()
+                                        alert.messageText = "API Key Required"
+                                        alert.informativeText = "Please configure your \(providerName) API key first using 'Configure API Keys...' menu option."
+                                        alert.alertStyle = .warning
+                                        alert.addButton(withTitle: "OK")
+                                        alert.runModal()
+                                    }
+                                }
+                            }
+                        }
 
                     HStack {
                         Text("AI Provider")
