@@ -1,7 +1,7 @@
 # App Store Refactor Summary
 
 ## Overview
-textcliper has been successfully refactored for **Mac App Store distribution** with full **App Sandbox** support and **iCloud sync** capabilities.
+TextClipper has been successfully refactored for **Mac App Store distribution** with full **App Sandbox** support and **iCloud sync** capabilities.
 
 ## What Was Done
 
@@ -12,7 +12,7 @@ A complete backup of the original non-sandboxed version has been created for pot
 **Location:** `/Users/michaeltouboul/Desktop/SwiftUI_Programs/`
 
 **Files:**
-- `textcliper-website-distribution-backup-20251024.tar.gz` (1.7 MB, 78 files)
+- `textclipper-website-distribution-backup-20251024.tar.gz` (1.7 MB, 78 files)
 - `BACKUP_README.txt` - Quick restoration guide
 - `BACKUP_SUMMARY.md` - Detailed documentation
 - `test_backup_restoration.sh` - Automated verification script
@@ -26,16 +26,16 @@ A complete backup of the original non-sandboxed version has been created for pot
 **To restore the backup:**
 ```bash
 cd ~/Desktop/SwiftUI_Programs
-tar -xzf textcliper-website-distribution-backup-20251024.tar.gz
-cd textcliper
-open textcliper.xcodeproj
+tar -xzf textclipper-website-distribution-backup-20251024.tar.gz
+cd textclipper
+open textclipper.xcodeproj
 ```
 
 ---
 
 ### 2. Screenshot Capture Refactored for Sandbox ✅
 
-**File Modified:** [textcliper/OCRService.swift](textcliper/OCRService.swift)
+**File Modified:** [textclipper/OCRService.swift](textclipper/OCRService.swift)
 
 **Changes:**
 - **Removed:** `/usr/sbin/screencapture` Process execution (not sandbox-compatible)
@@ -64,7 +64,7 @@ CGImageDestinationCreateWithURL(tempURL as CFURL, kUTTypePNG, 1, nil)
 
 ### 3. App Sandbox Enabled ✅
 
-**File Modified:** [textcliper/textcliper.entitlements](textcliper/textcliper.entitlements)
+**File Modified:** [textclipper/textclipper.entitlements](textclipper/textclipper.entitlements)
 
 **Added Entitlements:**
 ```xml
@@ -94,7 +94,7 @@ CGImageDestinationCreateWithURL(tempURL as CFURL, kUTTypePNG, 1, nil)
 
 ### 4. iCloud Sync Fully Implemented ✅
 
-**New File Created:** [textcliper/iCloudSyncService.swift](textcliper/iCloudSyncService.swift)
+**New File Created:** [textclipper/iCloudSyncService.swift](textclipper/iCloudSyncService.swift)
 
 **Capabilities:**
 
@@ -173,7 +173,7 @@ iCloudSyncService.shared.checkiCloudStatus { available, error in
 
 The app compiles without errors and is properly signed with your Apple Developer certificate:
 - **Team:** Michael Touboul (Personal Team)
-- **Bundle ID:** MIT.textcliper
+- **Bundle ID:** MIT.textclipper
 - **Signing:** Apple Development: michael.tubul@gmail.com
 
 ---
@@ -184,24 +184,24 @@ The app compiles without errors and is properly signed with your Apple Developer
 
 1. **Open Xcode**
    ```bash
-   open ~/Desktop/SwiftUI_Programs/textcliper/textcliper.xcodeproj
+   open ~/Desktop/SwiftUI_Programs/textclipper/textclipper.xcodeproj
    ```
 
 2. **Add iCloudSyncService.swift to Project**
-   - Right-click on `textcliper` folder in project navigator
-   - Select "Add Files to textcliper..."
-   - Select `textcliper/iCloudSyncService.swift`
+   - Right-click on `textclipper` folder in project navigator
+   - Select "Add Files to textclipper..."
+   - Select `textclipper/iCloudSyncService.swift`
    - Ensure "Copy items if needed" is unchecked
    - Click "Add"
 
 3. **Enable iCloud Capability**
    - Select project in navigator
-   - Select "textcliper" target
+   - Select "textclipper" target
    - Go to "Signing & Capabilities" tab
    - Click "+ Capability"
    - Add "iCloud"
    - Check "CloudKit" and "Key-value storage"
-   - Container should be `iCloud.MIT.textcliper`
+   - Container should be `iCloud.MIT.textclipper`
 
 4. **Verify Entitlements**
    - In "Signing & Capabilities", verify you see:
@@ -458,12 +458,12 @@ A: Yes! Extract the backup archive and you'll have the original non-sandboxed ve
 ## Files Modified/Created
 
 ### Modified:
-1. [textcliper/OCRService.swift](textcliper/OCRService.swift) - Refactored screenshot capture
-2. [textcliper/textcliper.entitlements](textcliper/textcliper.entitlements) - Added sandbox + iCloud
+1. [textclipper/OCRService.swift](textclipper/OCRService.swift) - Refactored screenshot capture
+2. [textclipper/textclipper.entitlements](textclipper/textclipper.entitlements) - Added sandbox + iCloud
 
 ### Created:
-1. [textcliper/iCloudSyncService.swift](textcliper/iCloudSyncService.swift) - Complete iCloud sync implementation
-2. `/Users/michaeltouboul/Desktop/SwiftUI_Programs/textcliper-website-distribution-backup-20251024.tar.gz` - Backup
+1. [textclipper/iCloudSyncService.swift](textclipper/iCloudSyncService.swift) - Complete iCloud sync implementation
+2. `/Users/michaeltouboul/Desktop/SwiftUI_Programs/textclipper-website-distribution-backup-20251024.tar.gz` - Backup
 3. This file: [APPSTORE_REFACTOR_SUMMARY.md](APPSTORE_REFACTOR_SUMMARY.md)
 
 ---

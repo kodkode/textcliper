@@ -1,4 +1,4 @@
-# textcliper - Mac App Store Version - Final Status
+# textclipper - Mac App Store Version - Final Status
 
 ## ✅ COMPLETED
 
@@ -25,7 +25,7 @@ Your app has been successfully refactored for Mac App Store submission with the 
 
 ### 4. Code Signing ✅
 - **Team:** L5774582ZK (Paid Apple Developer Account)
-- **Bundle ID:** MIT.textcliper
+- **Bundle ID:** MIT.textclipper
 - **Signing:** Automatic, properly configured
 
 ---
@@ -34,7 +34,7 @@ Your app has been successfully refactored for Mac App Store submission with the 
 
 **Current Error:**
 ```
-Failed to upload item: Couldn't get container configuration from the server for container "iCloud.MIT.textcliper"
+Failed to upload item: Couldn't get container configuration from the server for container "iCloud.MIT.textclipper"
 ```
 
 **Fix:**
@@ -43,17 +43,17 @@ Failed to upload item: Couldn't get container configuration from the server for 
    - Go to: https://developer.apple.com/account/resources/identifiers/list/cloudContainer
    - Click **"+"** button
    - Select **"iCloud Containers"**
-   - Identifier: **`iCloud.MIT.textcliper`**
-   - Description: "textcliper OCR History"
+   - Identifier: **`iCloud.MIT.textclipper`**
+   - Description: "textclipper OCR History"
    - Click **"Continue"** → **"Register"**
 
 2. **Link Container to App ID:**
    - Go to: https://developer.apple.com/account/resources/identifiers/list
-   - Click on **"MIT.textcliper"**
+   - Click on **"MIT.textclipper"**
    - Find "iCloud" capability
    - Click **"Edit"**
    - Check **"Include CloudKit support"**
-   - Select container: **"iCloud.MIT.textcliper"**
+   - Select container: **"iCloud.MIT.textclipper"**
    - Click **"Save"** → **"Continue"** → **"Save"**
 
 3. **Rebuild in Xcode:**
@@ -87,7 +87,7 @@ Failed to upload item: Couldn't get container configuration from the server for 
 
 ### Alternative Option: Keep Non-Sandboxed Version for Website
 
-Your backup at `/Users/michaeltouboul/Desktop/SwiftUI_Programs/textcliper-website-distribution-backup-20251024.tar.gz` has the original interactive selection that works outside the sandbox.
+Your backup at `/Users/michaeltouboul/Desktop/SwiftUI_Programs/textclipper-website-distribution-backup-20251024.tar.gz` has the original interactive selection that works outside the sandbox.
 
 **You can offer BOTH versions:**
 - **Mac App Store:** Sandboxed, iCloud sync, full screen capture
@@ -133,9 +133,9 @@ Your backup at `/Users/michaeltouboul/Desktop/SwiftUI_Programs/textcliper-websit
    - Go to: https://appstoreconnect.apple.com/apps
    - Click **"+"** → New App
    - Platform: macOS
-   - Name: textcliper (or your preferred name)
-   - Bundle ID: MIT.textcliper
-   - SKU: textcliper-macos
+   - Name: textclipper (or your preferred name)
+   - Bundle ID: MIT.textclipper
+   - SKU: textclipper-macos
    - User Access: Full Access
 
 2. **App Information:**
@@ -162,23 +162,23 @@ Your backup at `/Users/michaeltouboul/Desktop/SwiftUI_Programs/textcliper-websit
 
 ## 🔧 Current Configuration
 
-### Entitlements (textcliper/textcliper.entitlements):
+### Entitlements (textclipper/textclipper.entitlements):
 ```xml
 ✅ App Sandbox: Enabled
 ✅ Network Client: Yes (for AI OCR)
 ✅ Camera: Yes (for screen recording)
 ✅ User Selected Files: Read/Write
-✅ iCloud Containers: iCloud.MIT.textcliper
+✅ iCloud Containers: iCloud.MIT.textclipper
 ✅ iCloud Services: CloudKit, CloudDocuments
 ✅ iCloud KV Store: Enabled
 ```
 
 ### Build Settings:
 ```
-Bundle ID: MIT.textcliper
+Bundle ID: MIT.textclipper
 Team: L5774582ZK
 Sandbox: YES
-Entitlements: textcliper/textcliper.entitlements
+Entitlements: textclipper/textclipper.entitlements
 Code Signing: Automatic
 ```
 

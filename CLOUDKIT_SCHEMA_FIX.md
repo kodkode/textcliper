@@ -26,7 +26,7 @@ Add the `timestamp` field as an indexed field in your CloudKit schema.
 
 1. Go to [https://icloud.developer.apple.com/dashboard](https://icloud.developer.apple.com/dashboard)
 2. Sign in with your Apple Developer account
-3. Select your container: **iCloud.L5774582ZK.MIT.textcliper**
+3. Select your container: **iCloud.L5774582ZK.MIT.textclipper**
 4. Make sure you're in the **Development** environment (blue "D" icon at top)
 
 ### 2. Navigate to Schema → Indexes

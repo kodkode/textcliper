@@ -1,4 +1,4 @@
-# textcliper Backup Manifest
+# textclipper Backup Manifest
 ## Pre-App Store Refactor - Website Distribution Version
 
 **Backup Date:** 2025-10-24
@@ -11,35 +11,35 @@
 
 ### 1. Screenshot Capture Method
 - **Implementation:** `/usr/sbin/screencapture` via Process
-- **Location:** `textcliper/OCRService.swift`
+- **Location:** `textclipper/OCRService.swift`
 - **Why Critical:** This approach is NOT sandbox-compatible but works perfectly for notarized website distribution
 
 ### 2. Build Configuration
 ```
 ENABLE_APP_SANDBOX = NO
 GENERATE_INFOPLIST_FILE = NO
-INFOPLIST_FILE = textcliper/Info.plist
+INFOPLIST_FILE = textclipper/Info.plist
 ```
-- **Location:** `textcliper.xcodeproj/project.pbxproj`
+- **Location:** `textclipper.xcodeproj/project.pbxproj`
 - **Why Critical:** Sandbox disabled to allow screencapture execution
 
 ### 3. Required Permissions
 - Screen Recording (NSScreenCaptureUsageDescription)
 - Accessibility (NSAccessibilityUsageDescription)
-- **Location:** `textcliper/Info.plist`
+- **Location:** `textclipper/Info.plist`
 
 ### 4. Entitlements
 - No App Sandbox
 - Hardened Runtime enabled (for notarization)
-- **Location:** `textcliper/textcliper.entitlements`
+- **Location:** `textclipper/textclipper.entitlements`
 
 ---
 
 ## What This Backup Contains
 
 ### Source Code
-- `/textcliper/` - All Swift source files
-  - `textcliperApp.swift` - App entry point
+- `/textclipper/` - All Swift source files
+  - `textclipperApp.swift` - App entry point
   - `AppDelegate.swift` - Main coordinator
   - `OCRService.swift` - **Critical: screencapture implementation**
   - `HotkeyManager.swift` - Global hotkey (⌘⇧8)
@@ -49,9 +49,9 @@ INFOPLIST_FILE = textcliper/Info.plist
   - Other supporting files
 
 ### Configuration Files
-- `textcliper.xcodeproj/` - Complete Xcode project
-- `textcliper/Info.plist` - **Critical: Permission strings**
-- `textcliper/textcliper.entitlements` - **Critical: No sandbox**
+- `textclipper.xcodeproj/` - Complete Xcode project
+- `textclipper/Info.plist` - **Critical: Permission strings**
+- `textclipper/textclipper.entitlements` - **Critical: No sandbox**
 - `.gitignore`
 
 ### Documentation
@@ -61,13 +61,13 @@ INFOPLIST_FILE = textcliper/Info.plist
 
 ### Build Scripts
 - `build_and_sign.sh` - Signing script
-- `run_textcliper.sh` - Launch script
+- `run_textclipper.sh` - Launch script
 - `test_permissions.sh` - Permission testing
 - `check_accessibility.swift` - Accessibility check
 
 ### Tests
-- `/textcliperTests/` - Unit tests
-- `/textcliperUITests/` - UI tests
+- `/textclipperTests/` - Unit tests
+- `/textclipperUITests/` - UI tests
 
 ---
 
@@ -87,17 +87,17 @@ These are excluded to keep backup clean and portable:
 ### Option 1: Fresh Start (Recommended)
 ```bash
 # 1. Extract backup archive
-tar -xzf textcliper-website-distribution-backup-20251024.tar.gz
+tar -xzf textclipper-website-distribution-backup-20251024.tar.gz
 
 # 2. Open in Xcode
-open textcliper.xcodeproj
+open textclipper.xcodeproj
 
 # 3. Verify critical settings
-xcodebuild -showBuildSettings -project textcliper.xcodeproj -scheme textcliper | grep -E "ENABLE_APP_SANDBOX|INFOPLIST_FILE"
+xcodebuild -showBuildSettings -project textclipper.xcodeproj -scheme textclipper | grep -E "ENABLE_APP_SANDBOX|INFOPLIST_FILE"
 
 # Expected output:
 #   ENABLE_APP_SANDBOX = NO
-#   INFOPLIST_FILE = textcliper/Info.plist
+#   INFOPLIST_FILE = textclipper/Info.plist
 
 # 4. Build and run
 # Press Cmd+R in Xcode
@@ -106,18 +106,18 @@ xcodebuild -showBuildSettings -project textcliper.xcodeproj -scheme textcliper |
 ### Option 2: Selective File Restoration
 ```bash
 # Restore specific critical files:
-cp backup/textcliper/OCRService.swift textcliper/OCRService.swift
-cp backup/textcliper/Info.plist textcliper/Info.plist
-cp backup/textcliper/textcliper.entitlements textcliper/textcliper.entitlements
+cp backup/textclipper/OCRService.swift textclipper/OCRService.swift
+cp backup/textclipper/Info.plist textclipper/Info.plist
+cp backup/textclipper/textclipper.entitlements textclipper/textclipper.entitlements
 
 # Restore build settings:
-cp backup/textcliper.xcodeproj/project.pbxproj textcliper.xcodeproj/project.pbxproj
+cp backup/textclipper.xcodeproj/project.pbxproj textclipper.xcodeproj/project.pbxproj
 ```
 
 ### Option 3: Compare Against App Store Version
 ```bash
 # Use diff to see what changed:
-diff -r backup/textcliper/ current/textcliper/
+diff -r backup/textclipper/ current/textclipper/
 ```
 
 ---

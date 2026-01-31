@@ -13,13 +13,13 @@ Entitlements are **permissions your app asks from macOS**. Think of them like:
 - "Can my app take screenshots?" → YES (we have this)
 - "Can my app use iCloud?" → YES (we have this)
 
-The file that stores these permissions is called `textcliper.entitlements` and **it already exists in your project**.
+The file that stores these permissions is called `textclipper.entitlements` and **it already exists in your project**.
 
 ---
 
 ## 📍 Where Is The Entitlements File?
 
-**Location:** `/Users/michaeltouboul/Desktop/SwiftUi_Programs/textcliper/textcliper/textcliper.entitlements`
+**Location:** `/Users/michaeltouboul/Desktop/SwiftUi_Programs/textclipper/textclipper/textclipper.entitlements`
 
 **You already have it!** It's in your project and it's correctly configured.
 
@@ -31,8 +31,8 @@ The file that stores these permissions is called `textcliper.entitlements` and *
 
 ```bash
 # Open Terminal and run:
-cd /Users/michaeltouboul/Desktop/SwiftUi_Programs/textcliper
-open textcliper.xcodeproj
+cd /Users/michaeltouboul/Desktop/SwiftUi_Programs/textclipper
+open textclipper.xcodeproj
 ```
 
 Wait for Xcode to open.
@@ -43,9 +43,9 @@ Wait for Xcode to open.
 
 1. In Xcode's left sidebar (Project Navigator), look for:
    ```
-   📁 textcliper
-     📁 textcliper
-       📄 textcliper.entitlements  ← Click this file
+   📁 textclipper
+     📁 textclipper
+       📄 textclipper.entitlements  ← Click this file
    ```
 
 2. When you click it, you'll see XML code. It should contain these lines:
@@ -60,7 +60,7 @@ Wait for Xcode to open.
 
 ### Step 3: Check Xcode Capabilities (1 minute)
 
-1. In Xcode, click on **textcliper** (the blue icon at the very top of the left sidebar)
+1. In Xcode, click on **textclipper** (the blue icon at the very top of the left sidebar)
 2. Click the **Signing & Capabilities** tab at the top
 3. You should see these boxes:
 
@@ -117,9 +117,9 @@ When you're ready to submit to the App Store, just follow these simple steps:
 ```bash
 # 1. Archive the app
 xcodebuild archive \
-  -project textcliper.xcodeproj \
-  -scheme textcliper \
-  -archivePath ./build/textcliper.xcarchive
+  -project textclipper.xcodeproj \
+  -scheme textclipper \
+  -archivePath ./build/textclipper.xcarchive
 
 # 2. Upload to App Store Connect
 # (You'll need to do this through Xcode Organizer)
@@ -130,7 +130,7 @@ xcodebuild archive \
 ## 🚨 Common Questions
 
 ### Q: Do I need to create an entitlements file?
-**A: NO!** You already have one at `textcliper/textcliper.entitlements`
+**A: NO!** You already have one at `textclipper/textclipper.entitlements`
 
 ### Q: Do I need to configure entitlements?
 **A: NO!** They're already configured correctly.
@@ -156,7 +156,7 @@ xcodebuild archive \
 
 1. **You click "Archive" in Xcode**
    - Xcode reads your project files
-   - Xcode reads `textcliper.entitlements` (automatically)
+   - Xcode reads `textclipper.entitlements` (automatically)
    - Xcode builds your app with those entitlements embedded
 
 2. **Xcode Creates Archive**
@@ -184,7 +184,7 @@ Print this out or keep it open:
 
 ```
 □ Step 1: Open Xcode
-□ Step 2: File exists? textcliper/textcliper.entitlements
+□ Step 2: File exists? textclipper/textclipper.entitlements
 □ Step 3: Signing & Capabilities tab shows "App Sandbox"
 □ Step 4: Signing & Capabilities tab shows "iCloud"
 
@@ -204,7 +204,7 @@ OR
 1. **Open Terminal**
 2. **Run this command:**
    ```bash
-   cat /Users/michaeltouboul/Desktop/SwiftUi_Programs/textcliper/textcliper/textcliper.entitlements
+   cat /Users/michaeltouboul/Desktop/SwiftUi_Programs/textclipper/textclipper/textclipper.entitlements
    ```
 3. **If you see XML code**, you're good! ✅
 

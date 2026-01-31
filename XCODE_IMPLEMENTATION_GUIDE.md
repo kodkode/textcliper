@@ -1,4 +1,4 @@
-# Xcode Implementation Guide for Screen to Text (textcliper)
+# Xcode Implementation Guide for Screen to Text (textclipper)
 
 ## Project Context
 
@@ -6,12 +6,12 @@ This guide is for implementing the Screen to Text macOS menu bar application in 
 
 ## Project Details from User
 
-- **Project Name**: `textcliper` (note: no second 'p')
+- **Project Name**: `textclipper` (note: no second 'p')
 - **Language**: Swift
 - **UI Framework**: SwiftUI (macOS App)
 - **Main Files**:
   - `ContentView.swift` (current UI)
-  - `textcliperApp.swift` (app entry point)
+  - `textclipperApp.swift` (app entry point)
   - Test files included
 
 ## Required Functionality (from Python version)
@@ -53,7 +53,7 @@ import SwiftUI
 import AppKit
 
 @main
-struct textcliperApp: App {
+struct textclipperApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
@@ -351,7 +351,7 @@ UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound
 ## Implementation Steps
 
 1. **Modify Info.plist**: Add usage descriptions and LSUIElement
-2. **Update textcliperApp.swift**: Implement AppDelegate with menu bar setup
+2. **Update textclipperApp.swift**: Implement AppDelegate with menu bar setup
 3. **Create OCRService.swift**: Put screenshot + OCR logic in separate file
 4. **Create TextEditorWindow.swift**: SwiftUI view for text editing
 5. **Add global hotkey**: Implement Carbon-based hotkey registration
@@ -374,13 +374,13 @@ UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound
 ## File Structure
 
 ```
-textcliper/
-├── textcliperApp.swift          # Main app + AppDelegate
+textclipper/
+├── textclipperApp.swift          # Main app + AppDelegate
 ├── ContentView.swift             # Can be minimal or removed
 ├── OCRService.swift              # Screenshot + OCR logic
 ├── TextEditorWindow.swift        # Edit text UI
 ├── Info.plist                    # Permissions + LSUIElement
-├── textcliper.entitlements       # App capabilities
+├── textclipper.entitlements       # App capabilities
 └── Assets.xcassets               # Optional: custom icon
 ```
 

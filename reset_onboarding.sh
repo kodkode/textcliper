@@ -1,15 +1,15 @@
 #!/bin/bash
 
-# Reset Onboarding Script for textcliper
+# Reset Onboarding Script for textclipper
 # This script deletes the onboarding completion flag so you can see the onboarding flow again
 
-echo "🔄 Resetting textcliper onboarding..."
+echo "🔄 Resetting textclipper onboarding..."
 
 # Delete the onboarding flag
-defaults delete MIT.textcliper hasCompletedOnboarding 2>/dev/null
+defaults delete MIT.textclipper hasCompletedOnboarding 2>/dev/null
 
 # Verify it was deleted
-if defaults read MIT.textcliper hasCompletedOnboarding 2>/dev/null; then
+if defaults read MIT.textclipper hasCompletedOnboarding 2>/dev/null; then
     echo "❌ Failed to reset onboarding flag"
     exit 1
 else

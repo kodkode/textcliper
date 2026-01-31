@@ -1,10 +1,10 @@
-# App Store Deployment Guide for textcliper
+# App Store Deployment Guide for textclipper
 
 **Created:** January 4, 2026 at 10:30 AM
 
 **Status: ✅ Your app is ready for App Store submission!**
 
-This guide walks you through every step to publish textcliper on the Mac App Store.
+This guide walks you through every step to publish textclipper on the Mac App Store.
 
 ---
 
@@ -38,8 +38,8 @@ Your app uses iCloud sync, but the container isn't registered yet. Let's fix tha
 4. Select **"iCloud Containers"** from the dropdown
 5. Click the **blue "+" button** to create a new container
 6. Enter these details:
-   - **Description:** `textcliper iCloud Container`
-   - **Identifier:** `iCloud.L5774582ZK.MIT.textcliper`
+   - **Description:** `textclipper iCloud Container`
+   - **Identifier:** `iCloud.L5774582ZK.MIT.textclipper`
 7. Click **"Continue"**
 8. Click **"Register"**
 
@@ -47,20 +47,20 @@ Your app uses iCloud sync, but the container isn't registered yet. Let's fix tha
 
 1. Go back to **"Identifiers"**
 2. Change the dropdown back to **"App IDs"**
-3. Find and click on **"MIT.textcliper"**
+3. Find and click on **"MIT.textclipper"**
 4. Scroll down to **"iCloud"**
 5. Make sure it's checked ✓
 6. Click **"Edit"** next to iCloud
-7. Check the box next to **"iCloud.L5774582ZK.MIT.textcliper"**
+7. Check the box next to **"iCloud.L5774582ZK.MIT.textclipper"**
 8. Click **"Continue"**
 9. Click **"Save"**
 
 ### Step 1.4: Update Xcode
 
 1. Open Xcode
-2. Open your textcliper project
-3. Click on **"textcliper"** in the project navigator (left sidebar)
-4. Select the **"textcliper"** target
+2. Open your textclipper project
+3. Click on **"textclipper"** in the project navigator (left sidebar)
+4. Select the **"textclipper"** target
 5. Go to **"Signing & Capabilities"** tab
 6. Under **"Signing"**, click the refresh button (circular arrow) or:
    - Uncheck "Automatically manage signing"
@@ -89,10 +89,10 @@ Fill in these fields:
 | Field | What to Enter |
 |-------|---------------|
 | **Platforms** | Check **"macOS"** only |
-| **Name** | `textcliper` (or your preferred display name) |
+| **Name** | `textclipper` (or your preferred display name) |
 | **Primary Language** | English (U.S.) |
-| **Bundle ID** | Select **"MIT.textcliper"** from the dropdown |
-| **SKU** | `textcliper-001` (any unique identifier) |
+| **Bundle ID** | Select **"MIT.textclipper"** from the dropdown |
+| **SKU** | `textclipper-001` (any unique identifier) |
 | **User Access** | Full Access |
 
 4. Click **"Create"**
@@ -108,7 +108,7 @@ You're now on your app's page. Fill in all required information.
 Click **"App Information"** in the left sidebar.
 
 **Localizable Information:**
-- **Name:** textcliper
+- **Name:** textclipper
 - **Subtitle:** Screenshot to Text in Seconds (max 30 characters)
 
 **General Information:**
@@ -139,7 +139,7 @@ Click **"App Privacy"** in the left sidebar.
    - If you collect NO user data: Select "No, we do not collect data"
    - If you use iCloud sync: You DO collect data (identifiers)
 
-**For textcliper with iCloud sync, select:**
+**For textclipper with iCloud sync, select:**
 - **Yes**, we collect data
 - Check: **Identifiers** (Device ID for iCloud)
 - Mark it as: **Not linked to user**, **Not used for tracking**
@@ -170,7 +170,7 @@ You need at least ONE screenshot. Recommended sizes:
 Enter a description of your app. Example:
 
 ```
-textcliper is your instant screenshot-to-text tool.
+textclipper is your instant screenshot-to-text tool.
 
 Simply press ⌘⇧8 or click the menu bar icon, select any area of your screen, and the text is automatically copied to your clipboard. Perfect for:
 
@@ -202,7 +202,7 @@ Enter a support URL. Options:
 - A GitHub repository URL
 - A simple support page
 
-Example: `https://github.com/yourusername/textcliper`
+Example: `https://github.com/yourusername/textclipper`
 
 **Marketing URL (Optional)**
 
@@ -228,8 +228,8 @@ Click **"Save"** in the top right.
 
 ### Step 4.1: Archive Your App in Xcode
 
-1. Open your textcliper project in Xcode
-2. In the top bar, make sure you see: **"textcliper > My Mac"**
+1. Open your textclipper project in Xcode
+2. In the top bar, make sure you see: **"textclipper > My Mac"**
 3. Click **Product** menu → **Archive**
 4. Wait for the build to complete (1-3 minutes)
 5. The **Organizer** window will open automatically
@@ -260,7 +260,7 @@ After upload, Apple processes your build:
 ### Step 5.1: Add the Build to Your App Version
 
 1. Go back to App Store Connect (https://appstoreconnect.apple.com)
-2. Click **"My Apps"** → Click **"textcliper"**
+2. Click **"My Apps"** → Click **"textclipper"**
 3. Click **"1.0 Prepare for Submission"** in the left sidebar
 4. Scroll down to **"Build"** section
 5. Click the **"+"** button next to Build
@@ -355,7 +355,7 @@ Before submitting, verify:
 
 ### "No suitable application records were found"
 - Your Bundle ID in Xcode doesn't match App Store Connect
-- Check that MIT.textcliper is selected in both places
+- Check that MIT.textclipper is selected in both places
 
 ### "Missing Compliance"
 - After upload, you may need to answer export compliance
@@ -378,7 +378,7 @@ Once approved, your app will be live on the Mac App Store!
 
 You can share it with the link:
 ```
-https://apps.apple.com/app/textcliper/id[YOUR_APP_ID]
+https://apps.apple.com/app/textclipper/id[YOUR_APP_ID]
 ```
 
 (The App ID will be shown in App Store Connect after your app is live)

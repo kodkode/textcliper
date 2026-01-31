@@ -9,7 +9,7 @@ Apps like **TextSniper**, **CleanShot X**, and **Shottr** use a special Apple-ap
 
 ## Implementation
 
-### 1. Add Entitlement to `textcliper.entitlements`
+### 1. Add Entitlement to `textclipper.entitlements`
 
 ```xml
 <key>com.apple.security.temporary-exception.mach-register.global-name</key>
@@ -18,7 +18,7 @@ Apps like **TextSniper**, **CleanShot X**, and **Shottr** use a special Apple-ap
 </array>
 ```
 
-**File**: [textcliper/textcliper.entitlements](textcliper/textcliper.entitlements)
+**File**: [textclipper/textclipper.entitlements](textclipper/textclipper.entitlements)
 
 This entitlement grants permission to register the Mach service name required for interactive screencapture.
 
@@ -38,7 +38,7 @@ process.terminationHandler = { proc in
 try process.run()
 ```
 
-**File**: [textcliper/OCRService.swift](textcliper/OCRService.swift:38-56)
+**File**: [textclipper/OCRService.swift](textclipper/OCRService.swift:38-56)
 
 ### 3. Keep App Sandbox Enabled
 
@@ -120,7 +120,7 @@ Apps using this approach:
 ### Check Entitlements in Built App
 
 ```bash
-codesign -d --entitlements - ~/Library/Developer/Xcode/DerivedData/textcliper*/Build/Products/Debug/textcliper.app
+codesign -d --entitlements - ~/Library/Developer/Xcode/DerivedData/textclipper*/Build/Products/Debug/textclipper.app
 ```
 
 Look for:
@@ -188,4 +188,4 @@ This is not a "hack" or workaround - it's an Apple-provided, documented, and app
 **Document Created**: October 25, 2025
 **macOS Version**: 14.0+ (Sonoma)
 **Xcode Version**: 16.0
-**App**: textcliper - OCR Screenshot Tool
+**App**: textclipper - OCR Screenshot Tool

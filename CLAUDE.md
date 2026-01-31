@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**textcliper** is a macOS menu bar utility that captures screenshots and extracts text using OCR (Optical Character Recognition). The app runs as an LSUIElement (background app with menu bar icon) and provides a global hotkey (⌘⇧8) for quick screenshot-to-text capture.
+**textclipper** is a macOS menu bar utility that captures screenshots and extracts text using OCR (Optical Character Recognition). The app runs as an LSUIElement (background app with menu bar icon) and provides a global hotkey (⌘⇧8) for quick screenshot-to-text capture.
 
 ## Architecture
 
@@ -12,24 +12,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The app uses a **singleton-based service architecture** where each major functionality is encapsulated in its own service class:
 
-1. **AppDelegate** (textcliper/AppDelegate.swift) - Central coordinator
+1. **AppDelegate** (textclipper/AppDelegate.swift) - Central coordinator
    - Manages menu bar status item and UI
    - Orchestrates all services (OCR, hotkey, clipboard)
    - Handles app lifecycle and permission flows
    - Owns the notification and alert system
 
-2. **OCRService** (textcliper/OCRService.swift) - Screenshot + text extraction
+2. **OCRService** (textclipper/OCRService.swift) - Screenshot + text extraction
    - Uses `/usr/sbin/screencapture` for screenshot capture (NOT CGWindowListCreateImage)
    - Leverages Apple's Vision framework for OCR
    - Process-based approach with async completion handlers
    - Temp file management in system temp directory
 
-3. **HotkeyManager** (textcliper/HotkeyManager.swift) - Global hotkey registration
+3. **HotkeyManager** (textclipper/HotkeyManager.swift) - Global hotkey registration
    - Uses Carbon Event Manager (EventHotKeyRef)
    - Requires Accessibility permissions
    - Registers ⌘⇧8 globally across macOS
 
-4. **ClipboardManager** (textcliper/ClipboardManager.swift) - System pasteboard access
+4. **ClipboardManager** (textclipper/ClipboardManager.swift) - System pasteboard access
    - Simple wrapper around NSPasteboard
    - Result-based error handling
 
@@ -55,19 +55,19 @@ UNUserNotificationCenter shows success notification
 ### Development Build
 ```bash
 # Build for development
-xcodebuild build -project textcliper.xcodeproj -scheme textcliper -configuration Debug
+xcodebuild build -project textclipper.xcodeproj -scheme textclipper -configuration Debug
 
 # Run from Xcode (recommended for development)
-# Open textcliper.xcodeproj in Xcode and press Cmd+R
+# Open textclipper.xcodeproj in Xcode and press Cmd+R
 ```
 
 ### Testing
 ```bash
 # Run unit tests
-xcodebuild test -project textcliper.xcodeproj -scheme textcliper -destination 'platform=macOS'
+xcodebuild test -project textclipper.xcodeproj -scheme textclipper -destination 'platform=macOS'
 
 # Clean build
-xcodebuild clean -project textcliper.xcodeproj -scheme textcliper
+xcodebuild clean -project textclipper.xcodeproj -scheme textclipper
 ```
 
 ### Local Installation (Test as End User)
@@ -82,7 +82,7 @@ xcodebuild clean -project textcliper.xcodeproj -scheme textcliper
 # 4. Copy new build to /Applications
 # 5. Launch the installed app
 
-# After installation, grant permissions to "textcliper" (not "Xcode"):
+# After installation, grant permissions to "textclipper" (not "Xcode"):
 # - System Settings → Privacy & Security → Screen Recording
 # - System Settings → Privacy & Security → Accessibility
 ```
@@ -114,18 +114,18 @@ xcodebuild clean -project textcliper.xcodeproj -scheme textcliper
 ### Verify Build Configuration
 ```bash
 # Check critical build settings
-xcodebuild -showBuildSettings -project textcliper.xcodeproj -scheme textcliper | grep -E "ENABLE_APP_SANDBOX|GENERATE_INFOPLIST_FILE|INFOPLIST_FILE"
+xcodebuild -showBuildSettings -project textclipper.xcodeproj -scheme textclipper | grep -E "ENABLE_APP_SANDBOX|GENERATE_INFOPLIST_FILE|INFOPLIST_FILE"
 
 # Expected output (Release configuration):
 #   ENABLE_APP_SANDBOX = YES  (App Store requirement)
 #   GENERATE_INFOPLIST_FILE = NO
-#   INFOPLIST_FILE = textcliper/Info.plist
+#   INFOPLIST_FILE = textclipper/Info.plist
 
 # Verify permission strings in built app
-plutil -p ~/Library/Developer/Xcode/DerivedData/textcliper*/Build/Products/Debug/textcliper.app/Contents/Info.plist | grep Usage
+plutil -p ~/Library/Developer/Xcode/DerivedData/textclipper*/Build/Products/Debug/textclipper.app/Contents/Info.plist | grep Usage
 
 # Verify sandbox entitlement for screencapture
-codesign -d --entitlements - ~/Library/Developer/Xcode/DerivedData/textcliper*/Build/Products/Release/textcliper.app | grep -A 2 "temporary-exception"
+codesign -d --entitlements - ~/Library/Developer/Xcode/DerivedData/textclipper*/Build/Products/Release/textclipper.app | grep -A 2 "temporary-exception"
 ```
 
 ## Critical Configuration
@@ -136,13 +136,13 @@ codesign -d --entitlements - ~/Library/Developer/Xcode/DerivedData/textcliper*/B
    - Setting: `ENABLE_APP_SANDBOX = YES` in Release configuration (required for App Store)
    - Special entitlement: `com.apple.security.temporary-exception.mach-register.global-name` with value `com.apple.screencapture.interactive`
    - This allows `/usr/sbin/screencapture` to work within the sandbox (similar to TextSniper)
-   - **Critical**: The entitlement MUST be present in `textcliper.entitlements` for interactive screenshot selection to work
+   - **Critical**: The entitlement MUST be present in `textclipper.entitlements` for interactive screenshot selection to work
    - If removed: Screenshot capture will fail even with Screen Recording permission
 
 2. **Manual Info.plist MUST Be Used**
    - Settings in project.pbxproj:
      - `GENERATE_INFOPLIST_FILE = NO`
-     - `INFOPLIST_FILE = textcliper/Info.plist`
+     - `INFOPLIST_FILE = textclipper/Info.plist`
    - Reason: NSScreenCaptureUsageDescription and NSAccessibilityUsageDescription must be embedded
    - If auto-generated: Permission strings missing → macOS falls back to generic prompts → TCC loops
 
@@ -165,18 +165,18 @@ If permission issues arise:
 
 ```bash
 # 1. Check if permission strings are in BUILT app (not just source)
-plutil -p ~/Library/Developer/Xcode/DerivedData/textcliper*/Build/Products/Debug/textcliper.app/Contents/Info.plist | grep NSScreenCaptureUsageDescription
+plutil -p ~/Library/Developer/Xcode/DerivedData/textclipper*/Build/Products/Debug/textclipper.app/Contents/Info.plist | grep NSScreenCaptureUsageDescription
 
 # 2. Verify sandbox configuration and entitlements
-xcodebuild -showBuildSettings -project textcliper.xcodeproj -scheme textcliper -configuration Release | grep ENABLE_APP_SANDBOX
-codesign -d --entitlements - ~/Library/Developer/Xcode/DerivedData/textcliper*/Build/Products/Release/textcliper.app | grep -A 2 "temporary-exception"
+xcodebuild -showBuildSettings -project textclipper.xcodeproj -scheme textclipper -configuration Release | grep ENABLE_APP_SANDBOX
+codesign -d --entitlements - ~/Library/Developer/Xcode/DerivedData/textclipper*/Build/Products/Release/textclipper.app | grep -A 2 "temporary-exception"
 
 # 3. Reset permissions for clean test
 tccutil reset ScreenCapture
-killall textcliper
+killall textclipper
 
 # 4. Check entitlements
-codesign -d --entitlements - ~/Library/Developer/Xcode/DerivedData/textcliper*/Build/Products/Debug/textcliper.app
+codesign -d --entitlements - ~/Library/Developer/Xcode/DerivedData/textclipper*/Build/Products/Debug/textclipper.app
 ```
 
 **Reference**: See [QUICK_REFERENCE.md](QUICK_REFERENCE.md) for comprehensive permission troubleshooting.
@@ -245,7 +245,7 @@ Uses Vision framework with VNRecognizeTextRequest:
 
 ### "screencapture not executing"
 - **Cause**: Missing temporary-exception entitlement
-- **Fix**: Verify `com.apple.security.temporary-exception.mach-register.global-name` entitlement exists in `textcliper.entitlements`
+- **Fix**: Verify `com.apple.security.temporary-exception.mach-register.global-name` entitlement exists in `textclipper.entitlements`
 - **Reason**: Sandboxed apps need this special entitlement to communicate with screencapture service
 
 ## Documentation
@@ -262,10 +262,10 @@ These documents contain valuable information about macOS permission systems, bui
 ## Project Structure
 
 ```
-textcliper/
-├── textcliper.xcodeproj/          # Xcode project
-├── textcliper/                     # Main app source
-│   ├── textcliperApp.swift        # App entry point
+textclipper/
+├── textclipper.xcodeproj/          # Xcode project
+├── textclipper/                     # Main app source
+│   ├── textclipperApp.swift        # App entry point
 │   ├── AppDelegate.swift          # Main coordinator
 │   ├── OCRService.swift           # Screenshot + OCR
 │   ├── HotkeyManager.swift        # Global hotkey
@@ -273,18 +273,18 @@ textcliper/
 │   ├── TextEditorWindow.swift     # Edit UI (SwiftUI)
 │   ├── ContentView.swift          # Unused (Settings scene)
 │   ├── Info.plist                 # App metadata (CRITICAL)
-│   └── textcliper.entitlements    # App capabilities
-├── textcliperTests/               # Unit tests
-├── textcliperUITests/             # UI tests
+│   └── textclipper.entitlements    # App capabilities
+├── textclipperTests/               # Unit tests
+├── textclipperUITests/             # UI tests
 └── [Documentation files]          # Debugging guides
 ```
 
 ## When Making Changes
 
 ### Adding New Permissions
-1. Add usage description to `textcliper/Info.plist`
+1. Add usage description to `textclipper/Info.plist`
 2. Verify it appears in built app: `plutil -p .../app.app/Contents/Info.plist`
-3. Add required entitlements to `textcliper.entitlements` if needed
+3. Add required entitlements to `textclipper.entitlements` if needed
 4. Test with clean TCC state: `tccutil reset ServiceName`
 
 ### Modifying Build Settings

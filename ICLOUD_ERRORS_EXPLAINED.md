@@ -34,7 +34,7 @@ The app was trying to upload items that were already synced to iCloud. This can 
 
 ## The Fix Applied
 
-Modified [CloudSyncService.swift](textcliper/CloudSyncService.swift:87-96) to handle duplicate records gracefully:
+Modified [CloudSyncService.swift](textclipper/CloudSyncService.swift:87-96) to handle duplicate records gracefully:
 
 ```swift
 catch let error as CKError {
@@ -70,7 +70,7 @@ After the fix, you should see:
 
 ### After (Graceful Handling)
 ```
-⚠️ Record already exists in iCloud, skipping: textcliper
+⚠️ Record already exists in iCloud, skipping: textclipper
 ✅ Sync completed successfully
 ```
 
@@ -79,8 +79,8 @@ After the fix, you should see:
 Your iCloud sync **IS working correctly**! Evidence from your screenshot:
 
 ✅ **13 items saved (encrypted)** - Local storage working
-✅ **Uploaded item to iCloud: textcliper** - At least one successful upload
-✅ **iCloud container configured** - `iCloud.L5774582ZK.MIT.textcliper`
+✅ **Uploaded item to iCloud: textclipper** - At least one successful upload
+✅ **iCloud container configured** - `iCloud.L5774582ZK.MIT.textclipper`
 ✅ **CloudKit schema deployed** - Fields marked as queryable
 
 ## Common CloudKit Errors Reference
@@ -123,7 +123,7 @@ Your iCloud sync **IS working correctly**! Evidence from your screenshot:
 
 ### View Detailed Logs
 1. Open Console.app
-2. Filter by process: "textcliper"
+2. Filter by process: "textclipper"
 3. Look for CloudKit messages:
    - ✅ "Uploaded item to iCloud"
    - ⚠️ "Record already exists in iCloud, skipping"

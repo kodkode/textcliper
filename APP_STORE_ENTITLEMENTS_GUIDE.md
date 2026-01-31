@@ -1,5 +1,5 @@
 # App Store Entitlements Setup Guide
-## textcliper - Complete Step-by-Step Tutorial
+## textclipper - Complete Step-by-Step Tutorial
 
 This guide explains exactly what entitlements your app needs, why they're needed, and how to configure them for App Store submission.
 
@@ -7,7 +7,7 @@ This guide explains exactly what entitlements your app needs, why they're needed
 
 ## 📋 Current Status
 
-Your app **already has the correct entitlements configured** in `textcliper.entitlements`. This guide explains what they do and how to verify them.
+Your app **already has the correct entitlements configured** in `textclipper.entitlements`. This guide explains what they do and how to verify them.
 
 ---
 
@@ -15,7 +15,7 @@ Your app **already has the correct entitlements configured** in `textcliper.enti
 
 ### 1. **App Sandbox** ✅ REQUIRED FOR APP STORE
 
-**File:** `textcliper.entitlements`
+**File:** `textclipper.entitlements`
 ```xml
 <key>com.apple.security.app-sandbox</key>
 <true/>
@@ -38,7 +38,7 @@ Your app **already has the correct entitlements configured** in `textcliper.enti
 
 ### 2. **iCloud Services (CloudKit)** ✅ REQUIRED FOR SYNC
 
-**File:** `textcliper.entitlements`
+**File:** `textclipper.entitlements`
 ```xml
 <key>com.apple.developer.icloud-services</key>
 <array>
@@ -46,11 +46,11 @@ Your app **already has the correct entitlements configured** in `textcliper.enti
 </array>
 <key>com.apple.developer.icloud-container-identifiers</key>
 <array>
-    <string>iCloud.L5774582ZK.MIT.textcliper</string>
+    <string>iCloud.L5774582ZK.MIT.textclipper</string>
 </array>
 <key>com.apple.developer.ubiquity-container-identifiers</key>
 <array>
-    <string>iCloud.L5774582ZK.MIT.textcliper</string>
+    <string>iCloud.L5774582ZK.MIT.textclipper</string>
 </array>
 <key>com.apple.developer.ubiquity-kvstore-identifier</key>
 <string>$(TeamIdentifierPrefix)$(CFBundleIdentifier)</string>
@@ -71,13 +71,13 @@ Your app **already has the correct entitlements configured** in `textcliper.enti
 1. Xcode → Target → Signing & Capabilities
 2. Verify "iCloud" capability is enabled
 3. Check "CloudKit" is selected
-4. Verify container ID matches: `iCloud.L5774582ZK.MIT.textcliper`
+4. Verify container ID matches: `iCloud.L5774582ZK.MIT.textclipper`
 
 ---
 
 ### 3. **Network Client** ✅ REQUIRED FOR AI FEATURES
 
-**File:** `textcliper.entitlements`
+**File:** `textclipper.entitlements`
 ```xml
 <key>com.apple.security.network.client</key>
 <true/>
@@ -104,7 +104,7 @@ Your app **already has the correct entitlements configured** in `textcliper.enti
 
 ### 4. **Screencapture Exception** ✅ REQUIRED FOR CORE FUNCTIONALITY
 
-**File:** `textcliper.entitlements`
+**File:** `textclipper.entitlements`
 ```xml
 <key>com.apple.security.temporary-exception.mach-register.global-name</key>
 <array>
@@ -130,7 +130,7 @@ Your app **already has the correct entitlements configured** in `textcliper.enti
 - Only allows communication with system screenshot service
 
 **How to verify:**
-1. Open `textcliper.entitlements` in Xcode
+1. Open `textclipper.entitlements` in Xcode
 2. Verify the `temporary-exception.mach-register.global-name` key exists
 3. Verify array contains: `com.apple.screencapture.interactive`
 
@@ -138,7 +138,7 @@ Your app **already has the correct entitlements configured** in `textcliper.enti
 
 ### 5. **AppleScript Exception (Finder)** ✅ REQUIRED FOR SHARING
 
-**File:** `textcliper.entitlements`
+**File:** `textclipper.entitlements`
 ```xml
 <key>com.apple.security.app-sandbox.temporary-exception.apple-events</key>
 <string>com.apple.finder</string>
@@ -156,7 +156,7 @@ Your app **already has the correct entitlements configured** in `textcliper.enti
 - Widely used by task managers and note-taking apps
 
 **How to verify:**
-1. Open `textcliper.entitlements` in Xcode
+1. Open `textclipper.entitlements` in Xcode
 2. Verify the `temporary-exception.apple-events` key exists
 3. Verify value is: `com.apple.finder`
 
@@ -164,7 +164,7 @@ Your app **already has the correct entitlements configured** in `textcliper.enti
 
 ### 6. **APS Environment** ✅ SET TO PRODUCTION
 
-**File:** `textcliper.entitlements`
+**File:** `textclipper.entitlements`
 ```xml
 <key>com.apple.developer.aps-environment</key>
 <string>production</string>
@@ -179,7 +179,7 @@ Your app **already has the correct entitlements configured** in `textcliper.enti
 **Current Status:** ✅ Already set to `production`
 
 **How to verify:**
-1. Open `textcliper.entitlements`
+1. Open `textclipper.entitlements`
 2. Verify value is `production` (NOT `development`)
 
 ---
@@ -218,12 +218,12 @@ Your app **already has the correct entitlements configured** in `textcliper.enti
 
 ### Step 1: Open Your Project
 ```bash
-cd /Users/michaeltouboul/Desktop/SwiftUi_Programs/textcliper
-open textcliper.xcodeproj
+cd /Users/michaeltouboul/Desktop/SwiftUi_Programs/textclipper
+open textclipper.xcodeproj
 ```
 
 ### Step 2: Check Entitlements File
-1. In Xcode, open `textcliper/textcliper.entitlements`
+1. In Xcode, open `textclipper/textclipper.entitlements`
 2. Verify it contains EXACTLY these keys:
    - ✅ `com.apple.developer.aps-environment` = `production`
    - ✅ `com.apple.developer.icloud-container-identifiers`
@@ -240,13 +240,13 @@ open textcliper.xcodeproj
    - ❌ `com.apple.security.files.user-selected.read-write`
 
 ### Step 3: Check Build Settings
-1. Select **textcliper** target
+1. Select **textclipper** target
 2. Go to **Build Settings** tab
 3. Search for "sandbox"
 4. Verify: `ENABLE_APP_SANDBOX = YES` (for Release configuration)
 
 ### Step 4: Check Signing & Capabilities
-1. Select **textcliper** target
+1. Select **textclipper** target
 2. Go to **Signing & Capabilities** tab
 3. Verify these capabilities are present:
    - ✅ App Sandbox
@@ -258,14 +258,14 @@ open textcliper.xcodeproj
 
 ### Step 5: Build Release Configuration
 ```bash
-xcodebuild build -project textcliper.xcodeproj -scheme textcliper -configuration Release
+xcodebuild build -project textclipper.xcodeproj -scheme textclipper -configuration Release
 ```
 
 Expected output: `** BUILD SUCCEEDED **`
 
 ### Step 6: Verify Built App Entitlements
 ```bash
-codesign -d --entitlements - ~/Library/Developer/Xcode/DerivedData/textcliper-*/Build/Products/Release/textcliper.app
+codesign -d --entitlements - ~/Library/Developer/Xcode/DerivedData/textclipper-*/Build/Products/Release/textclipper.app
 ```
 
 This shows the ACTUAL entitlements in the built app. Verify they match the entitlements file.
@@ -355,7 +355,7 @@ This shows the ACTUAL entitlements in the built app. Verify they match the entit
 ### Issue: "iCloud sync not working"
 **Solution:**
 1. Check iCloud is signed in (System Settings)
-2. Verify container ID matches: `iCloud.L5774582ZK.MIT.textcliper`
+2. Verify container ID matches: `iCloud.L5774582ZK.MIT.textclipper`
 3. Check CloudKit Dashboard for errors
 
 ### Issue: "API calls failing"

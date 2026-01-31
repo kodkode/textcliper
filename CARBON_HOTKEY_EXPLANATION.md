@@ -2,7 +2,7 @@
 
 ## Overview
 
-textcliper uses Apple's **Carbon Event Manager API** (`RegisterEventHotKey`) for global hotkey registration. This document explains how it works, what's allowed, and why no Accessibility permission is required.
+textclipper uses Apple's **Carbon Event Manager API** (`RegisterEventHotKey`) for global hotkey registration. This document explains how it works, what's allowed, and why no Accessibility permission is required.
 
 ## Table of Contents
 
@@ -192,7 +192,7 @@ Many reputable apps use Carbon hotkeys without Accessibility permission:
 
 ## Technical Implementation
 
-### How textcliper Uses Carbon Hotkeys
+### How textclipper Uses Carbon Hotkeys
 
 #### 1. Setup Event Handler (on app launch)
 ```swift
@@ -250,7 +250,7 @@ func unregisterHotkey() {
 
 ### Smart Detection: Carbon vs NSEvent
 
-textcliper automatically chooses the right API:
+textclipper automatically chooses the right API:
 
 ```swift
 func registerHotkey(sequence: KeySequence, callback: @escaping () -> Void) -> Bool {
@@ -354,7 +354,7 @@ Look for these in Xcode console:
 5. **Better user experience** than NSEvent monitors (no permission prompts)
 6. **App Store compliant** and used by major Mac apps
 
-### Why This Matters for textcliper
+### Why This Matters for textclipper
 
 - ⌘⇧8 works **immediately** without permission prompts
 - Users don't need to navigate System Settings
@@ -374,4 +374,4 @@ Look for these in Xcode console:
 
 **Document Version:** 1.0
 **Last Updated:** October 26, 2025
-**Author:** textcliper development team
+**Author:** textclipper development team

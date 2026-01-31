@@ -11,21 +11,21 @@
 
 ### Step 1: Open the Project
 ```bash
-open textcliper.xcodeproj
+open textclipper.xcodeproj
 ```
 
 ### Step 2: Add iCloudSyncService.swift
-1. In the left panel (Project Navigator), find the yellow **"textcliper"** folder
-2. Right-click on it → **"Add Files to 'textcliper'..."**
-3. Select **`iCloudSyncService.swift`** (it's in the textcliper folder)
+1. In the left panel (Project Navigator), find the yellow **"textclipper"** folder
+2. Right-click on it → **"Add Files to 'textclipper'..."**
+3. Select **`iCloudSyncService.swift`** (it's in the textclipper folder)
 4. **UNCHECK** "Copy items if needed"
-5. Make sure **"textcliper"** target is checked
+5. Make sure **"textclipper"** target is checked
 6. Click **"Add"**
 
 ### Step 3: Build and Run
 1. Press **Cmd+B** to build
-2. If you see provisioning errors, click on the **textcliper** project (blue icon)
-3. Select **"textcliper"** target
+2. If you see provisioning errors, click on the **textclipper** project (blue icon)
+3. Select **"textclipper"** target
 4. Go to **"Signing & Capabilities"** tab
 5. Make sure **"Automatically manage signing"** is **CHECKED**
 6. Xcode will automatically fix provisioning issues

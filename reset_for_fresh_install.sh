@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # reset_for_fresh_install.sh
-# Completely resets textcliper to simulate a fresh installation experience
+# Completely resets textclipper to simulate a fresh installation experience
 # This removes ALL app data, preferences, permissions, and cached information
 
 set -e
@@ -14,7 +14,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}================================================${NC}"
-echo -e "${BLUE}  textcliper Fresh Installation Reset${NC}"
+echo -e "${BLUE}  textclipper Fresh Installation Reset${NC}"
 echo -e "${BLUE}================================================${NC}"
 echo ""
 echo -e "${YELLOW}⚠️  WARNING: This will remove ALL app data!${NC}"
@@ -38,8 +38,8 @@ echo ""
 
 # Step 1: Terminate running instances
 echo -e "${YELLOW}[1/7]${NC} Terminating running instances..."
-if pgrep -x "textcliper" > /dev/null; then
-    killall textcliper 2>/dev/null || true
+if pgrep -x "textclipper" > /dev/null; then
+    killall textclipper 2>/dev/null || true
     sleep 2
     echo -e "${GREEN}✓ App terminated${NC}"
 else
@@ -49,8 +49,8 @@ echo ""
 
 # Step 2: Remove app from /Applications
 echo -e "${YELLOW}[2/7]${NC} Removing app from /Applications..."
-if [ -d "/Applications/textcliper.app" ]; then
-    rm -rf "/Applications/textcliper.app"
+if [ -d "/Applications/textclipper.app" ]; then
+    rm -rf "/Applications/textclipper.app"
     echo -e "${GREEN}✓ App removed${NC}"
 else
     echo -e "${GREEN}✓ App not in /Applications${NC}"
@@ -65,9 +65,9 @@ echo "  Resetting Screen Recording permission for all apps..."
 tccutil reset ScreenCapture 2>/dev/null || echo "  (ScreenCapture reset skipped - may require Full Disk Access)"
 
 # For Accessibility, we cannot safely reset it programmatically without breaking system mouse control
-# User will need to manually remove textcliper from Accessibility settings if it exists
-echo "  ${YELLOW}Note: Accessibility permission for textcliper (if exists) should be manually removed:${NC}"
-echo "  System Settings → Privacy & Security → Accessibility → Remove 'textcliper'"
+# User will need to manually remove textclipper from Accessibility settings if it exists
+echo "  ${YELLOW}Note: Accessibility permission for textclipper (if exists) should be manually removed:${NC}"
+echo "  System Settings → Privacy & Security → Accessibility → Remove 'textclipper'"
 echo "  ${YELLOW}(This is safer than resetting all Accessibility permissions which breaks mouse control)${NC}"
 
 echo -e "${GREEN}✓ Screen Recording permission reset${NC}"
@@ -75,7 +75,7 @@ echo ""
 
 # Step 4: Remove app container (sandboxed app data)
 echo -e "${YELLOW}[4/7]${NC} Removing app container data..."
-CONTAINER_PATH="$HOME/Library/Containers/MIT.textcliper"
+CONTAINER_PATH="$HOME/Library/Containers/MIT.textclipper"
 if [ -d "$CONTAINER_PATH" ]; then
     echo "  Removing: $CONTAINER_PATH"
     # Remove contents, but some metadata files may be protected
@@ -90,7 +90,7 @@ echo ""
 
 # Step 5: Remove UserDefaults/Preferences
 echo -e "${YELLOW}[5/8]${NC} Removing app preferences..."
-defaults delete MIT.textcliper 2>/dev/null && echo -e "${GREEN}✓ Preferences removed${NC}" || echo -e "${GREEN}✓ No preferences found${NC}"
+defaults delete MIT.textclipper 2>/dev/null && echo -e "${GREEN}✓ Preferences removed${NC}" || echo -e "${GREEN}✓ No preferences found${NC}"
 echo ""
 
 # Step 6: Remove CloudKit cache
@@ -98,8 +98,8 @@ echo -e "${YELLOW}[6/8]${NC} Clearing CloudKit cache..."
 # Note: This only removes local CloudKit cache, not data from iCloud servers
 CLOUDKIT_CACHE="$HOME/Library/Caches/CloudKit"
 if [ -d "$CLOUDKIT_CACHE" ]; then
-    find "$CLOUDKIT_CACHE" -name "*textcliper*" -delete 2>/dev/null || true
-    find "$CLOUDKIT_CACHE" -name "*MIT.textcliper*" -delete 2>/dev/null || true
+    find "$CLOUDKIT_CACHE" -name "*textclipper*" -delete 2>/dev/null || true
+    find "$CLOUDKIT_CACHE" -name "*MIT.textclipper*" -delete 2>/dev/null || true
     echo -e "${GREEN}✓ CloudKit cache cleared${NC}"
 else
     echo -e "${GREEN}✓ No CloudKit cache found${NC}"
@@ -112,17 +112,17 @@ echo -e "${YELLOW}[7/8]${NC} Removing Keychain entries (API keys)..."
 # Remove ALL API keys from the service (including any that may have synced from iCloud)
 # First, get a list of all accounts for this service
 echo "  Scanning for all API keys..."
-for account in $(security dump-keychain ~/Library/Keychains/login.keychain-db 2>/dev/null | grep -A 2 "com.textcliper.apikeys" | grep "acct" | awk -F'"' '{print $2}'); do
-    security delete-generic-password -s "com.textcliper.apikeys" -a "$account" 2>/dev/null && echo "  ✓ Removed: $account" || true
+for account in $(security dump-keychain ~/Library/Keychains/login.keychain-db 2>/dev/null | grep -A 2 "com.textclipper.apikeys" | grep "acct" | awk -F'"' '{print $2}'); do
+    security delete-generic-password -s "com.textclipper.apikeys" -a "$account" 2>/dev/null && echo "  ✓ Removed: $account" || true
 done
 
 # Also try known key names explicitly
 for key in "openai-api-key" "gemini-api-key" "ocrspace-api-key" "mistral-api-key"; do
-    security delete-generic-password -s "com.textcliper.apikeys" -a "$key" 2>/dev/null || true
+    security delete-generic-password -s "com.textclipper.apikeys" -a "$key" 2>/dev/null || true
 done
 
 # Remove encryption key
-security delete-generic-password -s "com.textcliper.encryption" -a "master-key" 2>/dev/null && echo "  ✓ Encryption key removed" || echo "  ✓ No encryption key found"
+security delete-generic-password -s "com.textclipper.encryption" -a "master-key" 2>/dev/null && echo "  ✓ Encryption key removed" || echo "  ✓ No encryption key found"
 
 echo -e "${GREEN}✓ Keychain cleanup complete${NC}"
 echo ""
@@ -150,9 +150,9 @@ echo "  ✓ CloudKit local cache cleared"
 echo "  ✓ Onboarding status reset"
 echo ""
 echo -e "${YELLOW}Optional - Manual Step:${NC}"
-echo "  If textcliper previously had Accessibility permission:"
+echo "  If textclipper previously had Accessibility permission:"
 echo "  → System Settings → Privacy & Security → Accessibility"
-echo "  → Remove 'textcliper' from the list (if present)"
+echo "  → Remove 'textclipper' from the list (if present)"
 echo ""
 echo -e "${YELLOW}Next Steps:${NC}"
 echo "1. Run: ${BLUE}./install_to_applications.sh${NC}"

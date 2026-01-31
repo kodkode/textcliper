@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # install_to_applications.sh
-# Builds and installs textcliper to /Applications for production testing
+# Builds and installs textclipper to /Applications for production testing
 
 set -e  # Exit on error
 
@@ -13,12 +13,12 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 PROJECT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-PROJECT_FILE="$PROJECT_DIR/textcliper.xcodeproj"
-SCHEME="textcliper"
+PROJECT_FILE="$PROJECT_DIR/textclipper.xcodeproj"
+SCHEME="textclipper"
 CONFIGURATION="Release"
 
 echo -e "${BLUE}================================================${NC}"
-echo -e "${BLUE}  textcliper Installation to /Applications${NC}"
+echo -e "${BLUE}  textclipper Installation to /Applications${NC}"
 echo -e "${BLUE}================================================${NC}"
 echo ""
 
@@ -40,14 +40,14 @@ echo ""
 
 # Step 2: Find the built app
 echo -e "${YELLOW}[2/6]${NC} Locating built app..."
-DERIVED_DATA_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "textcliper-*" -type d -maxdepth 1 | while read dir; do echo "$(stat -f%m "$dir") $dir"; done | sort -rn | head -1 | cut -d' ' -f2-)
+DERIVED_DATA_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "textclipper-*" -type d -maxdepth 1 | while read dir; do echo "$(stat -f%m "$dir") $dir"; done | sort -rn | head -1 | cut -d' ' -f2-)
 
 if [ -z "$DERIVED_DATA_PATH" ]; then
     echo -e "${RED}❌ Could not find DerivedData path${NC}"
     exit 1
 fi
 
-BUILT_APP="$DERIVED_DATA_PATH/Build/Products/$CONFIGURATION/textcliper.app"
+BUILT_APP="$DERIVED_DATA_PATH/Build/Products/$CONFIGURATION/textclipper.app"
 
 if [ ! -d "$BUILT_APP" ]; then
     echo -e "${RED}❌ Built app not found at: $BUILT_APP${NC}"
@@ -59,9 +59,9 @@ echo ""
 
 # Step 3: Terminate running instances
 echo -e "${YELLOW}[3/6]${NC} Checking for running instances..."
-if pgrep -x "textcliper" > /dev/null; then
-    echo "  Terminating running textcliper..."
-    killall textcliper 2>/dev/null || true
+if pgrep -x "textclipper" > /dev/null; then
+    echo "  Terminating running textclipper..."
+    killall textclipper 2>/dev/null || true
     sleep 1
     echo -e "${GREEN}✓ Running instances terminated${NC}"
 else
@@ -71,8 +71,8 @@ echo ""
 
 # Step 4: Remove old version from /Applications
 echo -e "${YELLOW}[4/6]${NC} Removing old version from /Applications..."
-if [ -d "/Applications/textcliper.app" ]; then
-    rm -rf "/Applications/textcliper.app"
+if [ -d "/Applications/textclipper.app" ]; then
+    rm -rf "/Applications/textclipper.app"
     echo -e "${GREEN}✓ Old version removed${NC}"
 else
     echo -e "${GREEN}✓ No old version found${NC}"
@@ -83,20 +83,20 @@ echo ""
 echo -e "${YELLOW}[5/6]${NC} Installing to /Applications..."
 cp -R "$BUILT_APP" "/Applications/"
 
-if [ ! -d "/Applications/textcliper.app" ]; then
+if [ ! -d "/Applications/textclipper.app" ]; then
     echo -e "${RED}❌ Installation failed${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}✓ Installed to /Applications/textcliper.app${NC}"
+echo -e "${GREEN}✓ Installed to /Applications/textclipper.app${NC}"
 echo ""
 
 # Step 6: Launch the app
-echo -e "${YELLOW}[6/6]${NC} Launching textcliper..."
-open "/Applications/textcliper.app"
+echo -e "${YELLOW}[6/6]${NC} Launching textclipper..."
+open "/Applications/textclipper.app"
 sleep 2
 
-if pgrep -x "textcliper" > /dev/null; then
+if pgrep -x "textclipper" > /dev/null; then
     echo -e "${GREEN}✓ App launched successfully${NC}"
 else
     echo -e "${YELLOW}⚠ App may not have launched (check System Settings for permissions)${NC}"
@@ -111,11 +111,11 @@ echo ""
 echo -e "${YELLOW}Next Steps:${NC}"
 echo "1. Grant Screen Recording permission:"
 echo "   System Settings → Privacy & Security → Screen Recording"
-echo "   → Enable 'textcliper' (NOT 'Xcode')"
+echo "   → Enable 'textclipper' (NOT 'Xcode')"
 echo ""
 echo "2. Grant Accessibility permission (for ⌘⇧8 hotkey):"
 echo "   System Settings → Privacy & Security → Accessibility"
-echo "   → Enable 'textcliper'"
+echo "   → Enable 'textclipper'"
 echo ""
 echo "3. Test the app:"
 echo "   • Click the menu bar icon"

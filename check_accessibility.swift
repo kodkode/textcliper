@@ -8,4 +8,4 @@ print("Accessibility Permission Status: \(trusted ? "✅ GRANTED" : "❌ NOT GRA
 print("")
 print("If not granted, go to:")
 print("  System Settings > Privacy & Security > Accessibility")
-print("  Enable: Xcode (or textcliper)")
+print("  Enable: Xcode (or textclipper)")

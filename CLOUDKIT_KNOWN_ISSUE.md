@@ -140,7 +140,7 @@ When you're ready to deploy to production or need cross-device sync, we can:
 
 ## Technical Details
 
-**Container:** `iCloud.L5774582ZK.MIT.textcliper`
+**Container:** `iCloud.L5774582ZK.MIT.textclipper`
 **Database:** Private CloudKit Database
 **Record Type:** `CaptureHistory`
 **Indexed Fields:**
