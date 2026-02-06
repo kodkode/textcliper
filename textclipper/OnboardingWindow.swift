@@ -92,6 +92,14 @@ struct OnboardingView: View {
             }
             .padding()
             .background(Color(NSColor.controlBackgroundColor))
+
+            // Terms agreement
+            Text("By continuing, you agree to our [Terms of Service](https://textclipper.com/terms) and [Privacy Policy](https://textclipper.com/privacy).")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.bottom, 15)
+                .padding(.horizontal)
         }
     }
 

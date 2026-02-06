@@ -18,3 +18,8 @@ DerivedData/
 
 # macOS
 .DS_Store
+
+# Build artifacts
+build_temp/
+*.dmg
+*.log

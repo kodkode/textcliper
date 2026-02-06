@@ -25,7 +25,18 @@ class CloudSyncService: ObservableObject {
         didSet {
             UserDefaults.standard.set(iCloudSyncEnabled, forKey: "iCloudSyncEnabled")
             if iCloudSyncEnabled {
-                startAutoSync()
+                // Re-check availability when enabling
+                Task {
+                    let available = await checkiCloudStatus()
+                    await MainActor.run {
+                        self.isCloudKitAvailable = available
+                        if available {
+                            self.startAutoSync()
+                        } else {
+                           self.syncStatus = .error("iCloud not available or user not signed in")
+                        }
+                    }
+                }
             } else {
                 stopAutoSync()
             }
@@ -42,9 +53,8 @@ class CloudSyncService: ObservableObject {
         // Load saved preference
         self.iCloudSyncEnabled = UserDefaults.standard.bool(forKey: "iCloudSyncEnabled")
 
-        // Use the default container from Entitlements (Best Practice)
-        // This avoids issues where the hardcoded string might not match exactly what macOS expects
-        self.container = CKContainer.default()
+        // Explicitly use the container ID from entitlements to avoid lookup errors in Production
+        self.container = CKContainer(identifier: "iCloud.L5774582ZK.MIT.textcliper")
         self.database = container?.privateCloudDatabase
 
         // Check if CloudKit is available
