@@ -479,10 +479,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
 
             if !hasKey {
-                showAlert(
-                    title: "API Key Required",
-                    message: "Please configure your \(providerName) API key first using 'Configure API Keys...' menu option."
-                )
+                // Show API config dialog instead of alert
+                configureAPIKey()
                 return
             }
         }

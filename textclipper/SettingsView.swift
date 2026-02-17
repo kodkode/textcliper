@@ -39,9 +39,6 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 24) {
                 // Header
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Settings")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
                     Text("Configure textclipper preferences")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
@@ -98,15 +95,8 @@ struct SettingsView: View {
                                     // Revert the toggle
                                     aiEnhancedOCR = false
 
-                                    // Show alert
-                                    DispatchQueue.main.async {
-                                        let alert = NSAlert()
-                                        alert.messageText = "API Key Required"
-                                        alert.informativeText = "Please configure your \(providerName) API key first using 'Configure API Keys...' menu option."
-                                        alert.alertStyle = .warning
-                                        alert.addButton(withTitle: "OK")
-                                        alert.runModal()
-                                    }
+                                    // Open configuration sheet
+                                    showAPIKeyConfig = true
                                 }
                             }
                         }
@@ -147,7 +137,6 @@ struct SettingsView: View {
                     Button("Configure API Keys...") {
                         showAPIKeyConfig = true
                     }
-                    .disabled(!aiEnhancedOCR)
                 }
 
                 Divider()
@@ -257,6 +246,10 @@ struct SettingsView: View {
                             Text("Version \(getAppVersion())")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
+
+                            Link("Visit Website", destination: URL(string: "https://textclipper.app")!)
+                                .font(.footnote)
+                                .foregroundColor(.accentColor)
                         }
                     }
                 }
@@ -269,19 +262,12 @@ struct SettingsView: View {
             Text("") // Placeholder
         }
         .sheet(isPresented: $showAPIKeyConfig) {
-            // API key config will be shown via AppDelegate notification
-            Text("") // Placeholder
+            APIKeyConfigView(isPresented: $showAPIKeyConfig)
         }
         .onChange(of: showHotkeyRecorder) { _, newValue in
             if newValue {
                 NotificationCenter.default.post(name: NSNotification.Name("ShowHotkeyRecorder"), object: nil)
                 showHotkeyRecorder = false // Reset state
-            }
-        }
-        .onChange(of: showAPIKeyConfig) { _, newValue in
-            if newValue {
-                NotificationCenter.default.post(name: NSNotification.Name("ShowAPIKeyConfig"), object: nil)
-                showAPIKeyConfig = false // Reset state
             }
         }
     }
