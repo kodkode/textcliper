@@ -12,11 +12,20 @@ class HistoryService: ObservableObject {
     static let shared = HistoryService()
 
     @Published private(set) var items: [HistoryItem] = []
-    private let retentionDays = 30 // Keep items from last 30 days
-    private let maxItems = 1000 // Safety limit to prevent excessive storage
     private let storageKey = "captureHistory"
     private let encryptedStorageKey = "captureHistoryEncrypted"
     private let encryptionEnabled = true // Enable encryption by default
+
+    // User-configurable limits (managed in Settings). 0 retention days = never delete.
+    private var retentionDays: Int {
+        let value = UserDefaults.standard.object(forKey: "autoDeleteAfterDays") as? Int
+        return value ?? 30
+    }
+
+    private var maxItems: Int {
+        let value = UserDefaults.standard.object(forKey: "maxHistoryItems") as? Int ?? 500
+        return value > 0 ? value : 500
+    }
 
     private init() {
         loadHistory()
@@ -68,18 +77,15 @@ class HistoryService: ObservableObject {
     // MARK: - Cleanup
 
     private func cleanupOldItems() {
-        let cutoffDate = Calendar.current.date(byAdding: .day, value: -retentionDays, to: Date()) ?? Date()
-
-        let itemsBeforeCleanup = items.count
-        items.removeAll { $0.timestamp < cutoffDate }
-
-        // Safety check: enforce max items limit
-        if items.count > maxItems {
-            items = Array(items.prefix(maxItems))
+        // retentionDays == 0 means "never auto-delete"
+        if retentionDays > 0 {
+            let cutoffDate = Calendar.current.date(byAdding: .day, value: -retentionDays, to: Date()) ?? Date()
+            items.removeAll { $0.timestamp < cutoffDate }
         }
 
-        let itemsRemoved = itemsBeforeCleanup - items.count
-        if itemsRemoved > 0 {
+        // Enforce max items limit
+        if items.count > maxItems {
+            items = Array(items.prefix(maxItems))
         }
     }
 
@@ -121,11 +127,10 @@ class HistoryService: ObservableObject {
                 UserDefaults.standard.removeObject(forKey: storageKey)
 
             } catch {
-
-                // Fallback to unencrypted
-                if let encoded = try? JSONEncoder().encode(items) {
-                    UserDefaults.standard.set(encoded, forKey: storageKey)
-                }
+                // Do NOT fall back to writing plaintext — captured text can contain
+                // anything visible on screen. Keep the last good encrypted copy on
+                // disk; current items remain available in memory for this session.
+                NSLog("History encryption failed; skipping persist to avoid writing plaintext: \(error)")
             }
         } else {
             // Save unencrypted

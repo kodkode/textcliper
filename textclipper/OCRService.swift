@@ -8,8 +8,6 @@
 import Foundation
 import AppKit
 import Vision
-import UniformTypeIdentifiers
-import ImageIO
 
 enum OCRError: Error {
     case screenshotFailed
@@ -59,52 +57,8 @@ class OCRService {
         do {
             try process.run()
         } catch {
+            try? FileManager.default.removeItem(at: tempURL)
             completion(.failure(.screenshotFailed))
-        }
-    }
-
-    /// Saves a CGImage to a temporary PNG file
-    private func saveCGImage(_ image: CGImage, completion: @escaping (Result<URL, OCRError>) -> Void) {
-        DispatchQueue.global(qos: .userInitiated).async {
-            let tempURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent("screenshot_\(UUID().uuidString).png")
-
-            guard let destination = CGImageDestinationCreateWithURL(tempURL as CFURL, kUTTypePNG, 1, nil) else {
-                DispatchQueue.main.async {
-                    completion(.failure(.screenshotFailed))
-                }
-                return
-            }
-
-            CGImageDestinationAddImage(destination, image, nil)
-
-            if CGImageDestinationFinalize(destination) {
-                DispatchQueue.main.async {
-                    completion(.success(tempURL))
-                }
-            } else {
-                DispatchQueue.main.async {
-                    completion(.failure(.screenshotFailed))
-                }
-            }
-        }
-    }
-
-    /// Fallback method for macOS < 14.0 (captures full screen)
-    private func captureFallback(completion: @escaping (Result<URL, OCRError>) -> Void) {
-        DispatchQueue.global(qos: .userInitiated).async {
-            Thread.sleep(forTimeInterval: 0.5) // Allow window switching
-
-            let displayID = CGMainDisplayID()
-
-            guard let image = CGDisplayCreateImage(displayID) else {
-                DispatchQueue.main.async {
-                    completion(.failure(.screenshotFailed))
-                }
-                return
-            }
-
-            self.saveCGImage(image, completion: completion)
         }
     }
 
@@ -144,17 +98,59 @@ class OCRService {
 
             // Use selected AI provider
             if provider == "openai" {
-                let model = UserDefaults.standard.string(forKey: "openaiModel") ?? "gpt-4o"
                 self.performOpenAIOCR(on: image, completion: completion)
             } else if provider == "gemini" {
-                let model = UserDefaults.standard.string(forKey: "geminiModel") ?? "gemini-2.5-flash"
                 self.performGeminiOCR(on: image, completion: completion)
             } else if provider == "ocrspace" {
                 self.performOCRSpaceOCR(on: image, completion: completion)
             }
         } else {
-            // Use standard Vision OCR
-            self.performStandardOCR(on: cgImage, completion: completion)
+            // Use local Vision OCR
+            self.performLocalOCR(on: cgImage, completion: completion)
+        }
+    }
+
+    /// Routes local OCR to the best Vision API available on this OS.
+    private func performLocalOCR(on cgImage: CGImage, completion: @escaping (Result<String, OCRError>) -> Void) {
+        if #available(macOS 26.0, *) {
+            performDocumentOCR(on: cgImage, completion: completion)
+        } else {
+            performStandardOCR(on: cgImage, completion: completion)
+        }
+    }
+
+    /// Modern document OCR (macOS 26+). RecognizeDocumentsRequest natively detects
+    /// paragraphs, lists and tables and auto-detects languages, so the manual
+    /// column-sorting / paragraph-reconstruction heuristics are not needed here.
+    @available(macOS 26.0, *)
+    private func performDocumentOCR(on cgImage: CGImage, completion: @escaping (Result<String, OCRError>) -> Void) {
+        Task {
+            do {
+                let request = RecognizeDocumentsRequest()
+                let observations = try await request.perform(on: cgImage)
+
+                guard let document = observations.first?.document else {
+                    DispatchQueue.main.async {
+                        completion(.failure(.noTextDetected))
+                    }
+                    return
+                }
+
+                let transcript = document.text.transcript
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+
+                DispatchQueue.main.async {
+                    if transcript.isEmpty {
+                        completion(.failure(.noTextDetected))
+                    } else {
+                        completion(.success(transcript))
+                    }
+                }
+            } catch {
+                // Fall back to the legacy Vision path on any failure
+                NSLog("RecognizeDocumentsRequest failed, falling back to legacy Vision OCR: \(error)")
+                self.performStandardOCR(on: cgImage, completion: completion)
+            }
         }
     }
 
@@ -170,8 +166,9 @@ class OCRService {
                 }
             case .failure(let error):
                 // Fallback to standard Vision OCR if API fails
+                NSLog("AI-enhanced OCR failed, falling back to Vision: \(error)")
                 if let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-                    self.performStandardOCR(on: cgImage, completion: completion)
+                    self.performLocalOCR(on: cgImage, completion: completion)
                 } else {
                     completion(.failure(.ocrFailed))
                 }
@@ -191,8 +188,9 @@ class OCRService {
                 }
             case .failure(let error):
                 // Fallback to standard Vision OCR if API fails
+                NSLog("AI-enhanced OCR failed, falling back to Vision: \(error)")
                 if let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-                    self.performStandardOCR(on: cgImage, completion: completion)
+                    self.performLocalOCR(on: cgImage, completion: completion)
                 } else {
                     completion(.failure(.ocrFailed))
                 }
@@ -212,8 +210,9 @@ class OCRService {
                 }
             case .failure(let error):
                 // Fallback to standard Vision OCR if API fails
+                NSLog("AI-enhanced OCR failed, falling back to Vision: \(error)")
                 if let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-                    self.performStandardOCR(on: cgImage, completion: completion)
+                    self.performLocalOCR(on: cgImage, completion: completion)
                 } else {
                     completion(.failure(.ocrFailed))
                 }
@@ -225,7 +224,7 @@ class OCRService {
     private func performStandardOCR(on cgImage: CGImage, completion: @escaping (Result<String, OCRError>) -> Void) {
         DispatchQueue.global(qos: .userInitiated).async {
             let request = VNRecognizeTextRequest { request, error in
-                if let error = error {
+                if error != nil {
                     DispatchQueue.main.async {
                         completion(.failure(.ocrFailed))
                     }
@@ -265,12 +264,8 @@ class OCRService {
                 }
             }
 
-            // Use revision 3 (LiveText) for best accuracy - requires macOS 13+
-            if #available(macOS 13, *) {
-                request.revision = VNRecognizeTextRequestRevision3
-            } else {
-                request.revision = VNRecognizeTextRequestRevision1
-            }
+            // Use revision 3 (LiveText) for best accuracy
+            request.revision = VNRecognizeTextRequestRevision3
 
             // Only use Latin-script and Cyrillic languages for reliable recognition
             // NOTE: Mixing different script types (Latin + Thai/Arabic/Vietnamese) causes
@@ -324,6 +319,7 @@ class OCRService {
     func performBarcodeDetection(on imageURL: URL, completion: @escaping (Result<String, OCRError>) -> Void) {
         guard let image = NSImage(contentsOf: imageURL),
               let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            try? FileManager.default.removeItem(at: imageURL)
             DispatchQueue.main.async {
                 completion(.failure(.imageLoadFailed))
             }
@@ -333,7 +329,8 @@ class OCRService {
         // Perform barcode detection on background thread
         DispatchQueue.global(qos: .userInitiated).async {
             let request = VNDetectBarcodesRequest { request, error in
-                if let error = error {
+                if error != nil {
+                    try? FileManager.default.removeItem(at: imageURL)
                     DispatchQueue.main.async {
                         completion(.failure(.ocrFailed))
                     }
@@ -342,6 +339,7 @@ class OCRService {
 
                 guard let observations = request.results as? [VNBarcodeObservation],
                       !observations.isEmpty else {
+                    try? FileManager.default.removeItem(at: imageURL)
                     DispatchQueue.main.async {
                         completion(.failure(.noTextDetected))
                     }
@@ -375,6 +373,7 @@ class OCRService {
             do {
                 try handler.perform([request])
             } catch {
+                try? FileManager.default.removeItem(at: imageURL)
                 DispatchQueue.main.async {
                     completion(.failure(.ocrFailed))
                 }
@@ -418,8 +417,6 @@ class OCRService {
             horizontalGap > gapThreshold
 
         if hasColumns {
-            let gapString = String(format: "%.2f", Double(horizontalGap))
-
             // Sort each column top-to-bottom (Vision coordinates are flipped, so we sort descending)
             leftColumn.sort { $0.boundingBox.origin.y > $1.boundingBox.origin.y }
             rightColumn.sort { $0.boundingBox.origin.y > $1.boundingBox.origin.y }

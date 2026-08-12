@@ -31,62 +31,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        // Load saved hotkey preferences
-        loadHotkeyPreferences()
-
-        // Request notification permissions
-        requestNotificationPermissions()
-
-        // Create status bar item
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-
-        if let button = statusItem?.button {
-            button.image = NSImage(systemSymbolName: "doc.text.viewfinder", accessibilityDescription: "Screen to Text")
-            button.imagePosition = .imageLeading
-        }
-
-        // Create menu
-        setupMenu()
-
-        // Register global hotkey
-        attemptHotkeyRegistration()
-
-        // Listen for app becoming active to retry hotkey registration
-        NSWorkspace.shared.notificationCenter.addObserver(
-            self,
-            selector: #selector(appDidActivate),
-            name: NSWorkspace.didActivateApplicationNotification,
-            object: nil
-        )
-
-        // Listen for notifications from SettingsView
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleShowHotkeyRecorder),
-            name: NSNotification.Name("ShowHotkeyRecorder"),
-            object: nil
-        )
-
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleShowAPIKeyConfig),
-            name: NSNotification.Name("ShowAPIKeyConfig"),
-            object: nil
-        )
-
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleUpdateMenuBarVisibility),
-            name: NSNotification.Name("UpdateMenuBarVisibility"),
-            object: nil
-        )
-
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleUpdateAdditiveClipboard),
-            name: NSNotification.Name("UpdateAdditiveClipboard"),
-            object: nil
-        )
+        startApp()
     }
 
     // MARK: - Onboarding
@@ -104,7 +49,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] _ in
             // Check if onboarding was completed
             if UserDefaults.standard.bool(forKey: "hasCompletedOnboarding") {
-                self?.initializeApp()
+                self?.startApp()
             } else {
                 // User closed window without completing - quit app
                 NSApplication.shared.terminate(nil)
@@ -112,9 +57,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func initializeApp() {
+    private var appStarted = false
+
+    private func startApp() {
+        // Guard against double initialization (e.g. onboarding close firing more than once)
+        guard !appStarted else { return }
+        appStarted = true
+
         // Load saved hotkey preferences
         loadHotkeyPreferences()
+
+        // Restore persisted additive clipboard preference (kept in sync with Settings)
+        additiveClipboardEnabled = UserDefaults.standard.bool(forKey: "additiveClipboardEnabled")
 
         // Request notification permissions
         requestNotificationPermissions()
@@ -189,7 +143,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if !hasPermission {
                 _ = HotkeyManager.shared.promptForAccessibilityPermissions()
             }
-        } else {
         }
 
         // Try to register hotkey
@@ -254,13 +207,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu?.addItem(NSMenuItem.separator())
 
+        let aiEnhancedEnabled = UserDefaults.standard.bool(forKey: "aiEnhancedOCREnabled")
         let aiEnhancedItem = NSMenuItem(
             title: "AI-Enhanced OCR",
             action: #selector(toggleAIEnhanced),
             keyEquivalent: ""
         )
         aiEnhancedItem.target = self
-        aiEnhancedItem.state = UserDefaults.standard.bool(forKey: "aiEnhancedOCREnabled") ? .on : .off
+        aiEnhancedItem.state = aiEnhancedEnabled ? .on : .off
         menu?.addItem(aiEnhancedItem)
 
         // AI Provider submenu
@@ -378,6 +332,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu?.addItem(settingsItem)
 
         menu?.addItem(NSMenuItem.separator())
+        
+        let updateItem = NSMenuItem(
+            title: "Check for Updates...",
+            action: #selector(checkForUpdates),
+            keyEquivalent: ""
+        )
+        updateItem.target = self
+        menu?.addItem(updateItem)
+
+        menu?.addItem(NSMenuItem.separator())
 
         let quitItem = NSMenuItem(
             title: "Quit",
@@ -394,10 +358,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let hasAccessibility = HotkeyManager.shared.checkAccessibilityPermissions()
 
         // Check screen recording permission
-        var hasScreenRecording = false
-        if #available(macOS 10.15, *) {
-            hasScreenRecording = CGPreflightScreenCaptureAccess()
-        }
+        let hasScreenRecording = CGPreflightScreenCaptureAccess()
 
         let message = """
         Accessibility: \(hasAccessibility ? "✅ Granted" : "❌ Not Granted")
@@ -438,7 +399,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         additiveClipboardEnabled.toggle()
         sender.state = additiveClipboardEnabled ? .on : .off
 
-        let status = additiveClipboardEnabled ? "enabled" : "disabled"
+        // Persist so Settings and the next launch stay in sync
+        UserDefaults.standard.set(additiveClipboardEnabled, forKey: "additiveClipboardEnabled")
 
         // Clear clipboard when toggling OFF
         if !additiveClipboardEnabled {
@@ -462,20 +424,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if newValue {
             let provider = UserDefaults.standard.string(forKey: "aiProvider") ?? "openai"
             let hasKey: Bool
-            let providerName: String
 
             if provider == "openai" {
                 hasKey = KeychainService.shared.getOpenAIKey() != nil
-                providerName = "OpenAI"
             } else if provider == "gemini" {
                 hasKey = KeychainService.shared.getGeminiKey() != nil
-                providerName = "Gemini"
             } else if provider == "ocrspace" {
                 hasKey = KeychainService.shared.getOCRSpaceKey() != nil
-                providerName = "OCR.space"
             } else {
                 hasKey = false
-                providerName = "Unknown"
             }
 
             if !hasKey {
@@ -486,21 +443,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         UserDefaults.standard.set(newValue, forKey: "aiEnhancedOCREnabled")
+        
+        // Update visual state
         sender.state = newValue ? .on : .off
-
-        let status = newValue ? "enabled" : "disabled"
+        sender.title = "AI-Enhanced OCR"
+        sender.attributedTitle = nil // Ensure no attributed title remains
     }
 
     @objc private func selectOpenAI() {
         UserDefaults.standard.set("openai", forKey: "aiProvider")
         setupMenu() // Refresh menu to update checkmarks
-        let model = UserDefaults.standard.string(forKey: "openaiModel") ?? "gpt-4o"
     }
 
     @objc private func selectGemini() {
         UserDefaults.standard.set("gemini", forKey: "aiProvider")
         setupMenu() // Refresh menu to update checkmarks
-        let model = UserDefaults.standard.string(forKey: "geminiModel") ?? "gemini-2.5-flash"
     }
 
     @objc private func selectOCRSpace() {
@@ -520,6 +477,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupMenu() // Refresh menu to update checkmarks
     }
 
+
+
     @objc private func configureAPIKey() {
         let alert = NSAlert()
         alert.messageText = "Configure API Keys"
@@ -534,7 +493,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         openAILabel.frame = NSRect(x: 0, y: 152, width: 340, height: 20)
         container.addSubview(openAILabel)
 
-        let openAIField = NSTextField(frame: NSRect(x: 0, y: 128, width: 340, height: 24))
+        let openAIField = NSSecureTextField(frame: NSRect(x: 0, y: 128, width: 340, height: 24))
         openAIField.placeholderString = "sk-proj-..."
         openAIField.stringValue = KeychainService.shared.getOpenAIKey() ?? ""
         openAIField.drawsBackground = true
@@ -548,7 +507,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         geminiLabel.frame = NSRect(x: 0, y: 96, width: 340, height: 20)
         container.addSubview(geminiLabel)
 
-        let geminiField = NSTextField(frame: NSRect(x: 0, y: 72, width: 340, height: 24))
+        let geminiField = NSSecureTextField(frame: NSRect(x: 0, y: 72, width: 340, height: 24))
         geminiField.placeholderString = "AIza..."
         geminiField.stringValue = KeychainService.shared.getGeminiKey() ?? ""
         geminiField.drawsBackground = true
@@ -562,7 +521,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         ocrSpaceLabel.frame = NSRect(x: 0, y: 40, width: 340, height: 20)
         container.addSubview(ocrSpaceLabel)
 
-        let ocrSpaceField = NSTextField(frame: NSRect(x: 0, y: 16, width: 340, height: 24))
+        let ocrSpaceField = NSSecureTextField(frame: NSRect(x: 0, y: 16, width: 340, height: 24))
         ocrSpaceField.placeholderString = "K8..."
         ocrSpaceField.stringValue = KeychainService.shared.getOCRSpaceKey() ?? ""
         ocrSpaceField.drawsBackground = true
@@ -656,6 +615,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.isReleasedWhenClosed = false
 
         settingsWindow = window
+    }
+
+    @objc private func checkForUpdates() {
+        SparkleService.shared.checkForUpdates()
     }
 
     @objc private func configureHotkey() {
@@ -804,7 +767,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let preview = String(processedText.prefix(100))
             let ellipsis = processedText.count > 100 ? "..." : ""
             let characterCount = processedText.count
-            let wordCount = processedText.split(separator: " ").count
+            let wordCount = processedText.split(whereSeparator: \.isWhitespace).count
 
             // Add to history (save processed text)
             let historyItem = HistoryItem(text: processedText)
@@ -914,8 +877,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Notifications
 
     private func requestNotificationPermissions() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, error in
             if let error = error {
+                NSLog("Notification permission request failed: \(error.localizedDescription)")
             }
         }
     }
@@ -934,6 +898,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
+                NSLog("Failed to deliver notification: \(error.localizedDescription)")
             }
         }
     }
@@ -955,7 +920,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let alert = NSAlert()
         alert.messageText = "Enable Accessibility Permission"
         alert.informativeText = """
-        To use the global hotkey (⌘⇧8), please:
+        To use the global hotkey (\(currentKeySequence.displayString())), please:
 
         1. Click "Open System Settings" below
         2. Find "textclipper" in the list

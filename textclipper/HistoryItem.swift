@@ -28,7 +28,7 @@ struct HistoryItem: Identifiable, Codable {
         self.text = text
         self.timestamp = timestamp
         self.characterCount = text.count
-        self.wordCount = text.split(separator: " ").count
+        self.wordCount = text.split(whereSeparator: \.isWhitespace).count
         self.deviceName = deviceName
         self.isSynced = false
         self.cloudRecordID = nil
@@ -36,7 +36,12 @@ struct HistoryItem: Identifiable, Codable {
 
     // Create from CloudKit record
     init?(from record: CKRecord) {
-        guard let text = record["text"] as? String,
+        // New records store the text end-to-end encrypted; fall back to the
+        // legacy plain "text" field for records synced by older versions.
+        let storedText = record.encryptedValues["encryptedText"] as? String
+            ?? record["text"] as? String
+
+        guard let text = storedText,
               let timestamp = record["timestamp"] as? Date,
               let characterCount = record["characterCount"] as? Int,
               let wordCount = record["wordCount"] as? Int,
@@ -67,7 +72,10 @@ struct HistoryItem: Identifiable, Codable {
 
         let record = CKRecord(recordType: "CaptureHistory", recordID: recordID)
         record["id"] = id.uuidString as CKRecordValue
-        record["text"] = text as CKRecordValue
+        // Captured text is stored end-to-end encrypted. A new field name is used
+        // because CloudKit production schemas can't change an existing field's
+        // type ("text" already exists as a plain String field).
+        record.encryptedValues["encryptedText"] = text
         record["timestamp"] = timestamp as CKRecordValue
         record["characterCount"] = characterCount as CKRecordValue
         record["wordCount"] = wordCount as CKRecordValue

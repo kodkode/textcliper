@@ -1,0 +1,22 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>TextClipper</title>
+        <item>
+            <title>1.1</title>
+            <pubDate>Wed, 18 Feb 2026 01:09:27 +0200</pubDate>
+            <sparkle:version>4</sparkle:version>
+            <sparkle:shortVersionString>1.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://textclipper.app/downloads/TextClipper_Installer.dmg" length="3652280" type="application/octet-stream" sparkle:edSignature="D8K55BFLgC1tduRvUAaXgtSbFk3jba4dL5ddVU4rxJI95FGujzlviWpo/y2cR4L0O989TMt5TA5G+ZRIE1gGCw=="/>
+        </item>
+        <item>
+            <title>1.0</title>
+            <pubDate>Wed, 18 Feb 2026 00:42:15 +0200</pubDate>
+            <sparkle:version>2</sparkle:version>
+            <sparkle:shortVersionString>1.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://textclipper.app/downloads/TextClipper_Installer.dmg" length="3565965" type="application/octet-stream" sparkle:edSignature="Wa+CQVHfRF6D68sTiLLSTBWFoYl2tF7G1tAgR9t233YtdAjcru5yF8kcEtaRub8OqGAJuq7deTZJelHLu2r1BA=="/>
+        </item>
+    </channel>
+</rss>

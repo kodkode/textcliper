@@ -20,7 +20,7 @@ class GeminiService {
     static let shared = GeminiService()
 
     private var apiEndpoint: String {
-        let model = UserDefaults.standard.string(forKey: "geminiModel") ?? "gemini-1.5-pro"
+        let model = UserDefaults.standard.string(forKey: "geminiModel") ?? "gemini-2.5-flash"
         return "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent"
     }
 
@@ -37,9 +37,6 @@ class GeminiService {
             return
         }
 
-        // Start timing
-        let startTime = CFAbsoluteTimeGetCurrent()
-
         // Get API key from keychain
         guard let apiKey = KeychainService.shared.getGeminiKey(), !apiKey.isEmpty else {
             completion(.failure(.noAPIKey))
@@ -55,9 +52,6 @@ class GeminiService {
                 }
                 return
             }
-
-            // Log encoding time
-            let encodingTime = CFAbsoluteTimeGetCurrent() - startTime
 
             // Prepare API request - Gemini uses different format than OpenAI
             let payload: [String: Any] = [
@@ -89,8 +83,9 @@ class GeminiService {
                 return
             }
 
-            // Create request with API key in URL
-            guard let url = URL(string: "\(self.apiEndpoint)?key=\(apiKey)") else {
+            // Send the API key via header, not the URL — query strings end up in
+            // proxy/server logs
+            guard let url = URL(string: self.apiEndpoint) else {
                 DispatchQueue.main.async {
                     completion(.failure(.invalidResponse))
                 }
@@ -100,13 +95,13 @@ class GeminiService {
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
             request.httpBody = jsonData
             request.timeoutInterval = 60  // Gemini Flash is very fast
 
 
             // Send request
             let task = URLSession.shared.dataTask(with: request) { data, response, error in
-                let timeElapsed = CFAbsoluteTimeGetCurrent() - startTime
                 if let error = error {
                     DispatchQueue.main.async {
                         completion(.failure(.networkError(error.localizedDescription)))
@@ -137,17 +132,6 @@ class GeminiService {
                             completion(.failure(.apiError(errorMessage)))
                         }
                         return
-                    }
-
-                    // Extract token usage metadata
-                    var inputTokens = 0
-                    var outputTokens = 0
-                    var totalTokens = 0
-
-                    if let usageMetadata = json["usageMetadata"] as? [String: Any] {
-                        inputTokens = usageMetadata["promptTokenCount"] as? Int ?? 0
-                        outputTokens = usageMetadata["candidatesTokenCount"] as? Int ?? 0
-                        totalTokens = usageMetadata["totalTokenCount"] as? Int ?? 0
                     }
 
                     // Extract content from Gemini's response format

@@ -14,6 +14,10 @@ struct SettingsView: View {
     // General Settings
     @AppStorage("launchAtLogin") private var launchAtLogin = false
     @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
+    
+    // Sparkle Settings
+    @AppStorage("SUEnableAutomaticChecks") private var enableAutomaticChecks = true
+    @AppStorage("SUAutomaticallyUpdate") private var automaticallyUpdate = false
 
     // OCR Settings
     @AppStorage("aiEnhancedOCREnabled") private var aiEnhancedOCR = false
@@ -61,6 +65,26 @@ struct SettingsView: View {
                                 object: newValue
                             )
                         }
+                        
+                    Divider()
+                        .padding(.vertical, 4)
+                        
+                    Toggle("Automatically check for updates", isOn: $enableAutomaticChecks)
+                        .onChange(of: enableAutomaticChecks) { _, newValue in
+                            SparkleService.shared.automaticallyChecksForUpdates = newValue
+                        }
+
+                    Toggle("Automatically download updates", isOn: $automaticallyUpdate)
+                        .disabled(!enableAutomaticChecks)
+                        .padding(.leading, 20)
+                        .onChange(of: automaticallyUpdate) { _, newValue in
+                            SparkleService.shared.automaticallyDownloadsUpdates = newValue
+                        }
+                        
+                    Button("Check for Updates Now") {
+                        SparkleService.shared.checkForUpdates()
+                    }
+                    .padding(.top, 4)
                 }
 
                 Divider()
@@ -75,20 +99,15 @@ struct SettingsView: View {
                             if newValue {
                                 // Check if API key is configured for current provider
                                 let hasKey: Bool
-                                let providerName: String
 
                                 if aiProvider == "openai" {
                                     hasKey = KeychainService.shared.getOpenAIKey() != nil
-                                    providerName = "OpenAI"
                                 } else if aiProvider == "gemini" {
                                     hasKey = KeychainService.shared.getGeminiKey() != nil
-                                    providerName = "Gemini"
                                 } else if aiProvider == "ocrspace" {
                                     hasKey = KeychainService.shared.getOCRSpaceKey() != nil
-                                    providerName = "OCR.space"
                                 } else {
                                     hasKey = false
-                                    providerName = "Unknown"
                                 }
 
                                 if !hasKey {
@@ -283,9 +302,9 @@ struct SettingsView: View {
     // MARK: - Helper Functions
 
     private func loadCurrentHotkey() {
-        // Load from UserDefaults or use default
-        if let savedKeyData = UserDefaults.standard.data(forKey: "hotkeySequence"),
-           let sequence = try? JSONDecoder().decode(KeySequence.self, from: savedKeyData) {
+        // Hotkey is persisted as a JSON string by AppDelegate.saveHotkeyPreferences()
+        if let jsonString = UserDefaults.standard.string(forKey: "hotkeySequence"),
+           let sequence = KeySequence.fromJSONString(jsonString) {
             currentHotkey = sequence.displayString()
         } else {
             currentHotkey = "⌘⇧8"
@@ -300,13 +319,16 @@ struct SettingsView: View {
                 try SMAppService.mainApp.unregister()
             }
         } catch {
+            NSLog("Launch at Login change failed: \(error.localizedDescription)")
+            // Revert the toggle so the UI reflects reality
+            launchAtLogin = !enabled
         }
     }
 
     private func clearHistory() {
         HistoryService.shared.clearAll()
     }
-
+    
     private func getAppVersion() -> String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"

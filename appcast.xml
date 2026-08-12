@@ -1,0 +1,20 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>textclipper Changelog</title>
+        <description>Most recent changes with links to updates.</description>
+        <language>en</language>
+        <item>
+            <title>Version 1.0</title>
+            <sparkle:releaseNotesLink>
+                https://textclipper.app/notes.html
+            </sparkle:releaseNotesLink>
+            <pubDate>Wed, 18 Feb 2026 00:40:27 +0200</pubDate>
+            <enclosure url="https://textclipper.app/downloads/TextClipper_Installer.dmg"
+                       sparkle:version="1"
+                       sparkle:shortVersionString="1.0"
+                       sparkle:edSignature="XhRkWdRVTDYZ8D22kwQ5cFCzY8VUncdfwQ1Vk/+mdWY1t+GTzINSpezbWPs/dNulezdjRoRI/3jBSn91oQ7HDw==" length="3566955"
+                       type="application/octet-stream" />
+        </item>
+    </channel>
+</rss>

@@ -94,7 +94,7 @@ struct OnboardingView: View {
             .background(Color(NSColor.controlBackgroundColor))
 
             // Terms agreement
-            Text("By continuing, you agree to our [Terms of Service](https://textclipper.com/terms) and [Privacy Policy](https://textclipper.com/privacy).")
+            Text("By continuing, you agree to our [Terms of Service](https://textclipper.app/terms.html) and [Privacy Policy](https://textclipper.app/privacy.html).")
                 .font(.caption2)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -172,6 +172,7 @@ struct FeatureRow: View {
 struct ScreenRecordingPermissionPage: View {
     @State private var isPermissionGranted = false
     @State private var hasTriggeredRequest = false
+    @State private var permissionCheckTimer: Timer?
 
     var body: some View {
         VStack(spacing: 8) {
@@ -228,11 +229,17 @@ struct ScreenRecordingPermissionPage: View {
         .onAppear {
             checkScreenRecordingPermission()
             // Start checking for permission periodically
-            Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
+            permissionCheckTimer?.invalidate()
+            permissionCheckTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
                 if checkScreenRecordingPermission() {
                     timer.invalidate()
                 }
             }
+        }
+        .onDisappear {
+            // Stop polling when the user navigates away or closes onboarding
+            permissionCheckTimer?.invalidate()
+            permissionCheckTimer = nil
         }
     }
 
@@ -258,6 +265,7 @@ struct ScreenRecordingPermissionPage: View {
             // Clean up temp file
             try? FileManager.default.removeItem(atPath: NSTemporaryDirectory() + "textclipper_temp.png")
         } catch {
+            NSLog("Failed to trigger screen recording permission prompt: \(error.localizedDescription)")
         }
     }
 
@@ -270,15 +278,11 @@ struct ScreenRecordingPermissionPage: View {
 
     @discardableResult
     private func checkScreenRecordingPermission() -> Bool {
-        // Check if we have screen recording permission
-        if #available(macOS 10.15, *) {
-            let hasPermission = CGPreflightScreenCaptureAccess()
-            DispatchQueue.main.async {
-                isPermissionGranted = hasPermission
-            }
-            return hasPermission
+        let hasPermission = CGPreflightScreenCaptureAccess()
+        DispatchQueue.main.async {
+            isPermissionGranted = hasPermission
         }
-        return true
+        return hasPermission
     }
 }
 

@@ -178,7 +178,7 @@ class CloudSyncService: ObservableObject {
                 switch recordResult {
                 case .success(let record):
                     fetchedRecords.append(record)
-                case .failure(let error):
+                case .failure:
                     break // Ignore individual record fetch errors
                 }
             }
@@ -196,8 +196,6 @@ class CloudSyncService: ObservableObject {
                     continuation.resume(returning: (fetchedRecords, cursor))
 
                 case .failure(let error):
-                    if let ckError = error as? CKError {
-                    }
                     continuation.resume(throwing: error)
                 }
             }
@@ -222,7 +220,6 @@ class CloudSyncService: ObservableObject {
 
             // Download new items from other devices
             // Make this non-fatal - if download fails, upload still succeeded
-            var downloadedCount = 0
             do {
                 let newItems = try await downloadNewItems()
                 for item in newItems {
@@ -230,7 +227,6 @@ class CloudSyncService: ObservableObject {
                         HistoryService.shared.addItem(item)
                     }
                 }
-                downloadedCount = newItems.count
             } catch {
                 // Download failed but upload succeeded - log and continue
                 // Don't throw - we want to mark sync as successful if upload worked

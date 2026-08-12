@@ -29,6 +29,7 @@ class EncryptionService {
         do {
             _ = try getOrCreateEncryptionKey()
         } catch {
+            NSLog("EncryptionService: failed to load or create encryption key: \(error)")
         }
     }
 
