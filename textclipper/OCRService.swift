@@ -8,6 +8,7 @@
 import Foundation
 import AppKit
 import Vision
+import UserNotifications
 
 enum OCRError: Error {
     case screenshotFailed
@@ -136,8 +137,9 @@ class OCRService {
                     return
                 }
 
-                let transcript = document.text.transcript
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                // Tables come from Vision's own structure, so the legacy
+                // table-guessing heuristic is not applied on this path.
+                let transcript = DocumentTextFormatter.format(document)
 
                 DispatchQueue.main.async {
                     if transcript.isEmpty {
@@ -157,66 +159,83 @@ class OCRService {
     /// Perform AI-enhanced OCR using OpenAI
     private func performOpenAIOCR(on image: NSImage, completion: @escaping (Result<String, OCRError>) -> Void) {
         OpenAIService.shared.extractTextFromImage(image) { result in
-            switch result {
-            case .success(let text):
-                if text.isEmpty {
-                    completion(.failure(.noTextDetected))
-                } else {
-                    completion(.success(text))
-                }
-            case .failure(let error):
-                // Fallback to standard Vision OCR if API fails
-                NSLog("AI-enhanced OCR failed, falling back to Vision: \(error)")
-                if let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-                    self.performLocalOCR(on: cgImage, completion: completion)
-                } else {
-                    completion(.failure(.ocrFailed))
-                }
-            }
+            self.handleAIResult(result, provider: "OpenAI", image: image, completion: completion)
         }
     }
 
     /// Perform AI-enhanced OCR using Gemini
     private func performGeminiOCR(on image: NSImage, completion: @escaping (Result<String, OCRError>) -> Void) {
         GeminiService.shared.extractTextFromImage(image) { result in
-            switch result {
-            case .success(let text):
-                if text.isEmpty {
-                    completion(.failure(.noTextDetected))
-                } else {
-                    completion(.success(text))
-                }
-            case .failure(let error):
-                // Fallback to standard Vision OCR if API fails
-                NSLog("AI-enhanced OCR failed, falling back to Vision: \(error)")
-                if let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-                    self.performLocalOCR(on: cgImage, completion: completion)
-                } else {
-                    completion(.failure(.ocrFailed))
-                }
-            }
+            self.handleAIResult(result, provider: "Gemini", image: image, completion: completion)
         }
     }
 
     /// Perform OCR using OCR.space API
     private func performOCRSpaceOCR(on image: NSImage, completion: @escaping (Result<String, OCRError>) -> Void) {
         OCRSpaceService.shared.extractTextFromImage(image) { result in
-            switch result {
-            case .success(let text):
-                if text.isEmpty {
-                    completion(.failure(.noTextDetected))
-                } else {
-                    completion(.success(text))
-                }
-            case .failure(let error):
-                // Fallback to standard Vision OCR if API fails
-                NSLog("AI-enhanced OCR failed, falling back to Vision: \(error)")
-                if let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-                    self.performLocalOCR(on: cgImage, completion: completion)
-                } else {
-                    completion(.failure(.ocrFailed))
-                }
+            self.handleAIResult(result, provider: "OCR.space", image: image, completion: completion)
+        }
+    }
+
+    /// Shared handling for AI providers: post-process successes, and on failure
+    /// tell the user before falling back to on-device OCR.
+    private func handleAIResult<E: Error>(_ result: Result<String, E>, provider: String, image: NSImage, completion: @escaping (Result<String, OCRError>) -> Void) {
+        switch result {
+        case .success(let text):
+            if text.isEmpty {
+                completion(.failure(.noTextDetected))
+            } else {
+                completion(.success(TextProcessingService.shared.autoProcessCapture(text)))
             }
+        case .failure(let error):
+            let reason = Self.describeAIFailure(error)
+            NSLog("\(provider) OCR failed, falling back to on-device OCR: \(reason)")
+
+            // OCR.space reports "no text found" as an error (code 5); that is not an outage
+            let nsError = error as NSError
+            let isNoTextResult = nsError.domain == "OCRSpaceService" && nsError.code == 5
+            if !isNoTextResult {
+                notifyAIFallback(provider: provider, reason: reason)
+            }
+            if let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+                performLocalOCR(on: cgImage, completion: completion)
+            } else {
+                completion(.failure(.ocrFailed))
+            }
+        }
+    }
+
+    /// Reasons already reported this session, so repeated failures don't spam notifications.
+    private var reportedAIFailures = Set<String>()
+
+    private func notifyAIFallback(provider: String, reason: String) {
+        guard reportedAIFailures.insert("\(provider): \(reason)").inserted else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "\(provider) OCR unavailable"
+        content.body = "Used on-device OCR instead. \(reason)"
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                NSLog("Failed to deliver AI fallback notification: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private static func describeAIFailure(_ error: Error) -> String {
+        switch error {
+        case OpenAIError.noAPIKey, GeminiError.noAPIKey:
+            return "No API key is configured."
+        case OpenAIError.apiError(let message), GeminiError.apiError(let message):
+            return message
+        case OpenAIError.networkError(let message), GeminiError.networkError(let message):
+            return "Network error: \(message)"
+        case OpenAIError.invalidImage, GeminiError.invalidImage:
+            return "The image could not be prepared for upload."
+        case OpenAIError.invalidResponse, GeminiError.invalidResponse:
+            return "The service returned an unexpected response."
+        default:
+            return error.localizedDescription
         }
     }
 
@@ -260,7 +279,7 @@ class OCRService {
                 cleaned = self.reconstructParagraphs(cleaned)
 
                 DispatchQueue.main.async {
-                    completion(.success(cleaned))
+                    completion(.success(TextProcessingService.shared.autoProcessCapture(cleaned)))
                 }
             }
 

@@ -22,8 +22,8 @@ struct SettingsView: View {
     // OCR Settings
     @AppStorage("aiEnhancedOCREnabled") private var aiEnhancedOCR = false
     @AppStorage("aiProvider") private var aiProvider = "openai"
-    @AppStorage("openaiModel") private var openaiModel = "gpt-4o"
-    @AppStorage("geminiModel") private var geminiModel = "gemini-2.5-flash"
+    @AppStorage(AIModelCatalog.openAIKey) private var openaiModel = AIModelCatalog.defaultOpenAIModel
+    @AppStorage(AIModelCatalog.geminiKey) private var geminiModel = AIModelCatalog.defaultGeminiModel
 
     // Clipboard Settings
     @AppStorage("additiveClipboardEnabled") private var additiveClipboard = false
@@ -59,6 +59,7 @@ struct SettingsView: View {
                         }
 
                     Toggle("Show Menu Bar Icon", isOn: $showMenuBarIcon)
+                        .help("When hidden, open TextClipper again from Applications to get back to Settings")
                         .onChange(of: showMenuBarIcon) { _, newValue in
                             NotificationCenter.default.post(
                                 name: NSNotification.Name("UpdateMenuBarVisibility"),
@@ -137,16 +138,8 @@ struct SettingsView: View {
                             Text("AI Model")
                                 .frame(width: 120, alignment: .leading)
                             Picker("", selection: aiProvider == "openai" ? $openaiModel : $geminiModel) {
-                                if aiProvider == "openai" {
-                                    Text("GPT-4o (Recommended)").tag("gpt-4o")
-                                    Text("GPT-4o Mini (Faster)").tag("gpt-4o-mini")
-                                    Text("GPT-4 Turbo").tag("gpt-4-turbo")
-                                    Text("GPT-4").tag("gpt-4")
-                                    Text("o1 (Reasoning)").tag("o1")
-                                    Text("o1 Mini (Reasoning)").tag("o1-mini")
-                                } else {
-                                    Text("Gemini 2.5 Flash (Recommended)").tag("gemini-2.5-flash")
-                                    Text("Gemini 2.0 Flash Exp").tag("gemini-2.0-flash-exp")
+                                ForEach(aiProvider == "openai" ? AIModelCatalog.openAIModels : AIModelCatalog.geminiModels) { model in
+                                    Text(model.name).tag(model.id)
                                 }
                             }
                             .disabled(!aiEnhancedOCR)

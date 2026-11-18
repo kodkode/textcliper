@@ -94,8 +94,9 @@ class EncryptionService {
             return key
         }
 
-        // Try to load from Keychain
-        if let keyData = try? loadKeyFromKeychain() {
+        // Try to load from Keychain. Only a genuinely missing key may be replaced;
+        // any other keychain error must not generate (and overwrite) a new one.
+        if let keyData = try loadKeyFromKeychain() {
             let key = SymmetricKey(data: keyData)
             cachedKey = key
             return key
@@ -134,7 +135,8 @@ class EncryptionService {
         }
     }
 
-    private func loadKeyFromKeychain() throws -> Data {
+    /// Returns nil only when no key exists; throws for any other keychain failure.
+    private func loadKeyFromKeychain() throws -> Data? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: keychainService,
@@ -146,6 +148,10 @@ class EncryptionService {
 
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
+
+        if status == errSecItemNotFound {
+            return nil
+        }
 
         guard status == errSecSuccess,
               let keyData = result as? Data else {

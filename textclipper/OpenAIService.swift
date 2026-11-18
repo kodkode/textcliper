@@ -22,7 +22,7 @@ class OpenAIService {
     private let apiEndpoint = "https://api.openai.com/v1/chat/completions"
 
     private var model: String {
-        return UserDefaults.standard.string(forKey: "openaiModel") ?? "gpt-4o"
+        return AIModelCatalog.selectedOpenAIModel
     }
 
     private init() {}
@@ -37,9 +37,6 @@ class OpenAIService {
             completion(.success(cachedText))
             return
         }
-
-        // Start timing
-        let startTime = CFAbsoluteTimeGetCurrent()
 
         // Get API key from keychain
         guard let apiKey = KeychainService.shared.getOpenAIKey(), !apiKey.isEmpty else {
@@ -56,9 +53,6 @@ class OpenAIService {
                 }
                 return
             }
-
-            // Log encoding time
-            let encodingTime = CFAbsoluteTimeGetCurrent() - startTime
 
             // Prepare API request
             let payload: [String: Any] = [
@@ -109,7 +103,6 @@ class OpenAIService {
 
             // Send request
             let task = URLSession.shared.dataTask(with: request) { data, response, error in
-                let timeElapsed = CFAbsoluteTimeGetCurrent() - startTime
                 if let error = error {
                     DispatchQueue.main.async {
                         completion(.failure(.networkError(error.localizedDescription)))
@@ -140,17 +133,6 @@ class OpenAIService {
                             completion(.failure(.apiError(errorMessage)))
                         }
                         return
-                    }
-
-                    // Extract token usage
-                    var promptTokens = 0
-                    var completionTokens = 0
-                    var totalTokens = 0
-
-                    if let usage = json["usage"] as? [String: Any] {
-                        promptTokens = usage["prompt_tokens"] as? Int ?? 0
-                        completionTokens = usage["completion_tokens"] as? Int ?? 0
-                        totalTokens = usage["total_tokens"] as? Int ?? 0
                     }
 
                     // Extract content

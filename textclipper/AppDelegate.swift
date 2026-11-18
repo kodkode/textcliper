@@ -25,6 +25,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var captureMenuItem: NSMenuItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // When hosting unit tests, don't start the app: an unsigned test build must not
+        // touch the real history, keychain key, iCloud data or global hotkey.
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            return
+        }
+
         // Check if onboarding has been completed
         if !UserDefaults.standard.bool(forKey: "hasCompletedOnboarding") {
             showOnboarding()
@@ -67,22 +73,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Load saved hotkey preferences
         loadHotkeyPreferences()
 
+        // Saved AI model choices that providers have retired fall back to the defaults
+        AIModelCatalog.migrateRetiredSelections()
+
         // Restore persisted additive clipboard preference (kept in sync with Settings)
         additiveClipboardEnabled = UserDefaults.standard.bool(forKey: "additiveClipboardEnabled")
 
         // Request notification permissions
         requestNotificationPermissions()
 
-        // Create status bar item
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-
-        if let button = statusItem?.button {
-            button.image = NSImage(systemSymbolName: "doc.text.viewfinder", accessibilityDescription: "Screen to Text")
-            button.imagePosition = .imageLeading
-        }
-
-        // Create menu
+        // Create menu, then the status bar item unless the user hid it in Settings.
+        // When hidden, reopening the app (e.g. from Applications) shows Settings.
         setupMenu()
+        if UserDefaults.standard.object(forKey: "showMenuBarIcon") as? Bool != false {
+            showStatusItem()
+        }
 
         // Register global hotkey
         attemptHotkeyRegistration()
@@ -154,15 +159,47 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         if success {
             hotkeyRegistered = true
+            hotkeyFailureReported = false
         } else {
+            hotkeyRegistered = false
 
-            // Only show Accessibility instructions if it's a multi-key sequence
+            // Registration is retried on every app switch; tell the user only once.
+            guard !hotkeyFailureReported else { return }
+            hotkeyFailureReported = true
+
             if needsAccessibility {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
                     self?.showAccessibilityInstructions()
                 }
+            } else {
+                // Single-key shortcuts fail when another app already owns the combination
+                showNotification(
+                    title: "Shortcut Unavailable",
+                    message: "\(currentKeySequence.displayString()) is already used by another app. Choose a different shortcut in TextClipper Settings."
+                )
             }
         }
+    }
+
+    private var hotkeyFailureReported = false
+
+    private func showStatusItem() {
+        guard statusItem == nil else { return }
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        if let button = statusItem?.button {
+            button.image = NSImage(systemSymbolName: "doc.text.viewfinder", accessibilityDescription: "Screen to Text")
+            button.imagePosition = .imageLeading
+        }
+        statusItem?.menu = menu
+    }
+
+    /// Launching the app again while it runs (e.g. from Applications) opens Settings —
+    /// the only way back in when the menu bar icon is hidden.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if appStarted && !flag && statusItem == nil {
+            openSettings()
+        }
+        return true
     }
 
     private func setupMenu() {
@@ -243,22 +280,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let openAIModelItem = NSMenuItem(title: "OpenAI Model", action: nil, keyEquivalent: "")
             let openAIModelMenu = NSMenu()
 
-            let currentOpenAIModel = UserDefaults.standard.string(forKey: "openaiModel") ?? "gpt-4o"
+            let currentOpenAIModel = AIModelCatalog.selectedOpenAIModel
 
-            let openAIModels = [
-                ("gpt-4o", "GPT-4o (Recommended)"),
-                ("gpt-4o-mini", "GPT-4o Mini (Faster)"),
-                ("gpt-4-turbo", "GPT-4 Turbo"),
-                ("gpt-4", "GPT-4"),
-                ("o1", "o1 (Reasoning)"),
-                ("o1-mini", "o1 Mini (Reasoning)")
-            ]
-
-            for (modelId, modelName) in openAIModels {
-                let modelItem = NSMenuItem(title: modelName, action: #selector(selectOpenAIModel(_:)), keyEquivalent: "")
+            for model in AIModelCatalog.openAIModels {
+                let modelItem = NSMenuItem(title: model.name, action: #selector(selectOpenAIModel(_:)), keyEquivalent: "")
                 modelItem.target = self
-                modelItem.representedObject = modelId
-                modelItem.state = (currentOpenAIModel == modelId) ? .on : .off
+                modelItem.representedObject = model.id
+                modelItem.state = (currentOpenAIModel == model.id) ? .on : .off
                 openAIModelMenu.addItem(modelItem)
             }
 
@@ -282,18 +310,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let geminiModelItem = NSMenuItem(title: "Gemini Model", action: nil, keyEquivalent: "")
             let geminiModelMenu = NSMenu()
 
-            let currentGeminiModel = UserDefaults.standard.string(forKey: "geminiModel") ?? "gemini-2.5-flash"
+            let currentGeminiModel = AIModelCatalog.selectedGeminiModel
 
-            let models = [
-                ("gemini-2.5-flash", "Gemini 2.5 Flash (Recommended)"),
-                ("gemini-2.0-flash-exp", "Gemini 2.0 Flash Exp")
-            ]
-
-            for (modelId, modelName) in models {
-                let modelItem = NSMenuItem(title: modelName, action: #selector(selectGeminiModel(_:)), keyEquivalent: "")
+            for model in AIModelCatalog.geminiModels {
+                let modelItem = NSMenuItem(title: model.name, action: #selector(selectGeminiModel(_:)), keyEquivalent: "")
                 modelItem.target = self
-                modelItem.representedObject = modelId
-                modelItem.state = (currentGeminiModel == modelId) ? .on : .off
+                modelItem.representedObject = model.id
+                modelItem.state = (currentGeminiModel == model.id) ? .on : .off
                 geminiModelMenu.addItem(modelItem)
             }
 
@@ -396,18 +419,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func toggleAdditiveClipboard(_ sender: NSMenuItem) {
-        additiveClipboardEnabled.toggle()
-        sender.state = additiveClipboardEnabled ? .on : .off
+        setAdditiveClipboard(!additiveClipboardEnabled)
 
-        // Persist so Settings and the next launch stay in sync
-        UserDefaults.standard.set(additiveClipboardEnabled, forKey: "additiveClipboardEnabled")
-
-        // Clear clipboard when toggling OFF
-        if !additiveClipboardEnabled {
-            NSPasteboard.general.clearContents()
-        }
-
-        // Show a brief notification
+        // Show a brief notification (the Settings toggle gives its own visual feedback)
         showNotification(
             title: "Additive Clipboard \(additiveClipboardEnabled ? "Enabled" : "Disabled")",
             message: additiveClipboardEnabled
@@ -655,6 +669,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         currentKeySequence = sequence
         saveHotkeyPreferences()
         updateCaptureMenuItemKeyEquivalent()
+        hotkeyFailureReported = false
         attemptHotkeyRegistration()
     }
 
@@ -712,14 +727,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func handleUpdateMenuBarVisibility(_ notification: Notification) {
         if let showIcon = notification.object as? Bool {
             if showIcon {
-                if statusItem == nil {
-                    statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-                    if let button = statusItem?.button {
-                        button.image = NSImage(systemSymbolName: "doc.text.viewfinder", accessibilityDescription: "Screen to Text")
-                        button.imagePosition = .imageLeading
-                    }
-                    statusItem?.menu = menu
-                }
+                showStatusItem()
             } else {
                 if let item = statusItem {
                     NSStatusBar.system.removeStatusItem(item)
@@ -730,11 +738,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func handleUpdateAdditiveClipboard(_ notification: Notification) {
-        if let enabled = notification.object as? Bool {
-            additiveClipboardEnabled = enabled
-            // Update menu item state if needed
-            setupMenu()
+        if let enabled = notification.object as? Bool, enabled != additiveClipboardEnabled {
+            setAdditiveClipboard(enabled)
         }
+    }
+
+    /// Single place that changes Additive Clipboard, so the menu and Settings behave the same.
+    private func setAdditiveClipboard(_ enabled: Bool) {
+        additiveClipboardEnabled = enabled
+
+        // Persist so Settings and the next launch stay in sync
+        UserDefaults.standard.set(enabled, forKey: "additiveClipboardEnabled")
+
+        // Turning it off clears the accumulated clipboard so the next capture starts fresh
+        if !enabled {
+            NSPasteboard.general.clearContents()
+        }
+
+        // Rebuild the menu so its checkmark matches
+        setupMenu()
+        statusItem?.menu = menu
     }
 
     // MARK: - Core Functionality
@@ -755,8 +778,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func handleExtractedText(_ text: String) {
-        // Automatically process text (detect and format tables)
-        let processedText = TextProcessingService.shared.autoProcessCapture(text)
+        // Table formatting already happened in OCRService (per OCR path)
+        let processedText = text
         capturedText = processedText
 
         // Copy to clipboard with additive mode if enabled
@@ -923,13 +946,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         To use the global hotkey (\(currentKeySequence.displayString())), please:
 
         1. Click "Open System Settings" below
-        2. Find "textclipper" in the list
+        2. Find "TextClipper" in the list
         3. Toggle it ON
-        4. Restart the app
-
-        The app is running from Xcode, so look for:
-        • "textclipper" or
-        • "Xcode" (if textclipper isn't listed)
+        4. Restart TextClipper
         """
         alert.alertStyle = .informational
         alert.addButton(withTitle: "Open System Settings")

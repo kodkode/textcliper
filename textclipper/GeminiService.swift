@@ -20,7 +20,7 @@ class GeminiService {
     static let shared = GeminiService()
 
     private var apiEndpoint: String {
-        let model = UserDefaults.standard.string(forKey: "geminiModel") ?? "gemini-2.5-flash"
+        let model = AIModelCatalog.selectedGeminiModel
         return "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent"
     }
 

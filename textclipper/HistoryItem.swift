@@ -61,14 +61,14 @@ struct HistoryItem: Identifiable, Codable {
         self.cloudRecordID = record.recordID.recordName
     }
 
+    /// The CloudKit record name this item is (or will be) stored under.
+    var cloudRecordName: String {
+        cloudRecordID ?? id.uuidString
+    }
+
     // Convert to CloudKit record
     func toCKRecord() -> CKRecord {
-        let recordID: CKRecord.ID
-        if let cloudID = cloudRecordID {
-            recordID = CKRecord.ID(recordName: cloudID)
-        } else {
-            recordID = CKRecord.ID(recordName: id.uuidString)
-        }
+        let recordID = CKRecord.ID(recordName: cloudRecordName)
 
         let record = CKRecord(recordType: "CaptureHistory", recordID: recordID)
         record["id"] = id.uuidString as CKRecordValue

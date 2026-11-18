@@ -9,6 +9,17 @@ import Foundation
 import CloudKit
 import Combine
 
+enum SyncError: LocalizedError {
+    case downloadFailed(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .downloadFailed(let reason):
+            return "Uploaded, but downloading from iCloud failed: \(reason)"
+        }
+    }
+}
+
 enum SyncStatus: Equatable {
     case idle
     case syncing
@@ -90,6 +101,12 @@ class CloudSyncService: ObservableObject {
         do {
             let savedRecord = try await database.save(record)
             HistoryService.shared.markAsSynced(itemID: item.id, cloudRecordID: savedRecord.recordID.recordName)
+
+            // The user may have deleted the item while the upload was in flight
+            if !HistoryService.shared.contains(itemID: item.id) {
+                pendingDeletions.insert(savedRecord.recordID.recordName)
+                try? await flushPendingDeletions()
+            }
         } catch let error as CKError {
             // Handle duplicate record error gracefully
             if error.code == .serverRecordChanged || error.code == .batchRequestFailed {
@@ -109,50 +126,92 @@ class CloudSyncService: ObservableObject {
         }
 
         var allFetchedRecords: [CKRecord] = []
-        let existingCloudRecordNames = Set(HistoryService.shared.items.compactMap { $0.cloudRecordID })
+        let localRecordNames = Set(HistoryService.shared.items.map(\.cloudRecordName))
+        let deleted = pendingDeletions
 
-        // Initial query
-        let query = CKQuery(recordType: "CaptureHistory", predicate: NSPredicate(value: true))
+        // Only fetch records within the retention window ("timestamp" is Queryable),
+        // so expired items aren't re-downloaded and re-purged on every sync.
+        let predicate: NSPredicate
+        if let cutoff = HistoryService.shared.retentionCutoff {
+            predicate = NSPredicate(format: "timestamp >= %@", cutoff as NSDate)
+        } else {
+            predicate = NSPredicate(value: true)
+        }
+        let query = CKQuery(recordType: "CaptureHistory", predicate: predicate)
         query.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)] // Newest first
 
         var cursor: CKQueryOperation.Cursor? = nil
-        var batchNumber = 1
 
         // Fetch all pages using cursor-based pagination
         repeat {
-
             let (records, nextCursor) = try await fetchBatch(query: query, cursor: cursor, database: database)
-
             allFetchedRecords.append(contentsOf: records)
             cursor = nextCursor
-
-            if nextCursor != nil {
-            } else {
-            }
-
-            batchNumber += 1
-
         } while cursor != nil
 
+        return allFetchedRecords
+            .filter {
+                HistoryMerge.shouldImport(recordName: $0.recordID.recordName,
+                                          localRecordNames: localRecordNames,
+                                          pendingDeletions: deleted)
+            }
+            .compactMap { HistoryItem(from: $0) }
+    }
 
-        // Process all fetched records
-        var newItems: [HistoryItem] = []
+    // MARK: - Deletions
 
-        for record in allFetchedRecords {
-            let recordName = record.recordID.recordName
+    private let pendingDeletionsKey = "cloudPendingDeletions"
 
-            if !existingCloudRecordNames.contains(recordName),
-               let item = HistoryItem(from: record) {
-                newItems.append(item)
+    /// Record names deleted locally that still have to be removed from iCloud.
+    /// Persisted so deletions survive being offline, sync being off, or a quit.
+    private var pendingDeletions: Set<String> {
+        get { Set(UserDefaults.standard.stringArray(forKey: pendingDeletionsKey) ?? []) }
+        set { UserDefaults.standard.set(Array(newValue), forKey: pendingDeletionsKey) }
+    }
+
+    /// Called when the user deletes history so it isn't downloaded back.
+    /// Only items that are (or may be) in iCloud are recorded; with sync off, purely
+    /// local items never reach iCloud, so tracking them would only grow the list.
+    /// An item deleted mid-upload is handled in `uploadItem`.
+    func recordDeletion(of items: [HistoryItem]) {
+        let cloudItems = items.filter { iCloudSyncEnabled || $0.isSynced || $0.cloudRecordID != nil }
+        guard !cloudItems.isEmpty else { return }
+        pendingDeletions.formUnion(cloudItems.map(\.cloudRecordName))
+
+        guard iCloudSyncEnabled, isCloudKitAvailable else { return }
+        Task {
+            do {
+                try await flushPendingDeletions()
+            } catch {
+                NSLog("iCloud deletion will be retried on next sync: \(error.localizedDescription)")
             }
         }
+    }
 
-        if newItems.isEmpty && !allFetchedRecords.isEmpty {
+    /// Deletes pending records from iCloud. A record that no longer exists counts as deleted.
+    private func flushPendingDeletions() async throws {
+        guard let database = database else { return }
+        let names = Array(pendingDeletions)
+        guard !names.isEmpty else { return }
+
+        // CloudKit accepts at most 400 records per modify request
+        for start in stride(from: 0, to: names.count, by: 400) {
+            let ids = names[start..<min(start + 400, names.count)].map { CKRecord.ID(recordName: $0) }
+            let (_, deleteResults) = try await database.modifyRecords(saving: [], deleting: ids, atomically: false)
+
+            var completed = Set<String>()
+            for (id, result) in deleteResults {
+                switch result {
+                case .success:
+                    completed.insert(id.recordName)
+                case .failure(let error):
+                    if (error as? CKError)?.code == .unknownItem {
+                        completed.insert(id.recordName)
+                    }
+                }
+            }
+            pendingDeletions.subtract(completed)
         }
-
-        let sortedItems = newItems.sorted { $0.timestamp > $1.timestamp }
-
-        return sortedItems
     }
 
     /// Fetch a single batch of records (up to 50 items per batch)
@@ -212,25 +271,24 @@ class CloudSyncService: ObservableObject {
         }
 
         do {
+            // Remove deleted items from iCloud first so they can't come back
+            try await flushPendingDeletions()
+
             // Upload unsynced items
             let unsyncedItems = HistoryService.shared.getUnsyncedItems()
             for item in unsyncedItems {
                 try await uploadItem(item)
             }
 
-            // Download new items from other devices
-            // Make this non-fatal - if download fails, upload still succeeded
+            // Download new items from other devices, merged in one batch
+            let newItems: [HistoryItem]
             do {
-                let newItems = try await downloadNewItems()
-                for item in newItems {
-                    await MainActor.run {
-                        HistoryService.shared.addItem(item)
-                    }
-                }
+                newItems = try await downloadNewItems()
             } catch {
-                // Download failed but upload succeeded - log and continue
-                // Don't throw - we want to mark sync as successful if upload worked
+                NSLog("iCloud download failed: \(error)")
+                throw SyncError.downloadFailed(error.localizedDescription)
             }
+            HistoryService.shared.addItems(newItems)
 
             await MainActor.run {
                 syncStatus = .success

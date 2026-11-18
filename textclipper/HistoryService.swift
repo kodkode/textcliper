@@ -27,30 +27,53 @@ class HistoryService: ObservableObject {
         return value > 0 ? value : 500
     }
 
+    /// Set when stored history exists but the keychain could not be read, so this
+    /// session must not overwrite it.
+    private var persistenceBlocked = false
+    private let unreadableBackupKey = "captureHistoryEncrypted.unreadable"
+
     private init() {
         loadHistory()
         cleanupOldItems()
     }
 
+    /// Retention cutoff from Settings; nil when auto-delete is set to "Never".
+    var retentionCutoff: Date? {
+        HistoryMerge.cutoff(retentionDays: retentionDays)
+    }
+
     // MARK: - Public Methods
 
     func addItem(_ item: HistoryItem) {
-        items.insert(item, at: 0)
+        addItems([item])
+    }
 
-        // Clean up old items
-        cleanupOldItems()
+    /// Adds several items in one pass (one sort, one save) — used for iCloud downloads.
+    func addItems(_ newItems: [HistoryItem]) {
+        guard !newItems.isEmpty else { return }
+        // Existing items win on duplicate ids (they carry the local sync state)
+        let merged = HistoryMerge.merge(existing: items, incoming: newItems, cutoff: retentionCutoff, maxItems: maxItems)
 
+        // Downloads beyond the cap merge to the same list; skip the re-encrypt and save
+        guard merged.map(\.id) != items.map(\.id) else { return }
+        items = merged
         saveHistory()
     }
 
     func deleteItem(_ item: HistoryItem) {
+        CloudSyncService.shared.recordDeletion(of: [item])
         items.removeAll { $0.id == item.id }
         saveHistory()
     }
 
     func clearAll() {
+        CloudSyncService.shared.recordDeletion(of: items)
         items.removeAll()
         saveHistory()
+    }
+
+    func contains(itemID: UUID) -> Bool {
+        items.contains { $0.id == itemID }
     }
 
     func updateItem(_ item: HistoryItem) {
@@ -77,16 +100,8 @@ class HistoryService: ObservableObject {
     // MARK: - Cleanup
 
     private func cleanupOldItems() {
-        // retentionDays == 0 means "never auto-delete"
-        if retentionDays > 0 {
-            let cutoffDate = Calendar.current.date(byAdding: .day, value: -retentionDays, to: Date()) ?? Date()
-            items.removeAll { $0.timestamp < cutoffDate }
-        }
-
-        // Enforce max items limit
-        if items.count > maxItems {
-            items = Array(items.prefix(maxItems))
-        }
+        // Sorted newest first, so the cap always drops the oldest entries
+        items = HistoryMerge.merge(existing: items, incoming: [], cutoff: retentionCutoff, maxItems: maxItems)
     }
 
     // MARK: - Storage
@@ -94,10 +109,24 @@ class HistoryService: ObservableObject {
     private func loadHistory() {
         // Try to load encrypted history first
         if encryptionEnabled, let encryptedData = UserDefaults.standard.data(forKey: encryptedStorageKey) {
-            if let decryptedData = try? EncryptionService.shared.decrypt(encryptedData),
-               let decoded = try? JSONDecoder().decode([HistoryItem].self, from: decryptedData) {
+            do {
+                let decryptedData = try EncryptionService.shared.decrypt(encryptedData)
+                let decoded = try JSONDecoder().decode([HistoryItem].self, from: decryptedData)
                 items = decoded.sorted { $0.timestamp > $1.timestamp }
                 return
+            } catch EncryptionError.keyRetrievalFailed {
+                // Keychain temporarily unavailable: don't overwrite history we can't read yet
+                NSLog("History key unavailable; history will not be saved this session")
+                persistenceBlocked = true
+                return
+            } catch {
+                // Data can't be decrypted with the current key. Keep a copy for recovery
+                // rather than silently overwriting it, then start fresh.
+                NSLog("Stored history is unreadable (\(error)); keeping a backup copy")
+                if UserDefaults.standard.data(forKey: unreadableBackupKey) == nil {
+                    UserDefaults.standard.set(encryptedData, forKey: unreadableBackupKey)
+                }
+                UserDefaults.standard.removeObject(forKey: encryptedStorageKey)
             }
         }
 
@@ -116,6 +145,8 @@ class HistoryService: ObservableObject {
     }
 
     private func saveHistory() {
+        guard !persistenceBlocked else { return }
+
         if encryptionEnabled {
             // Save encrypted
             do {
